@@ -1,0 +1,26 @@
+
+> supplier-order-engine-web-fixed@0.0.0 start
+> ng serve --host 127.0.0.1 --port 4300
+
+[33m❯[39m Building...
+[32m✔[39m Building...
+[1mInitial chunk files[22m[2m | [22m[1mNames[22m                      [2m | [22m [1mRaw size[22m
+[32mpolyfills.js[39m       [2m | [22m[2mpolyfills[22m                  [2m | [22m [36m90.20 kB[39m[2m | [22m
+[32mstyles.css[39m         [2m | [22m[2mstyles[22m                     [2m | [22m [36m35.15 kB[39m[2m | [22m
+[32mmain.js[39m            [2m | [22m[2mmain[22m                       [2m | [22m  [36m6.68 kB[39m[2m | [22m
+[32mchunk-Y5RQAIA6.js[39m  [2m | [22m[2m-[22m                          [2m | [22m  [36m1.50 kB[39m[2m | [22m
+[32mchunk-A26LTUAW.js[39m  [2m | [22m[2m-[22m                          [2m | [22m[36m219 bytes[39m[2m | [22m
+
+[1m [22m                  [2m | [22m[1mInitial total[22m              [2m | [22m[1m133.74 kB[22m
+
+[1mLazy chunk files[22m   [2m | [22m[1mNames[22m                      [2m | [22m [1mRaw size[22m
+[32mchunk-JOKL4VXI.js[39m  [2m | [22m[2morder-detail-page-component[22m[2m | [22m [36m47.53 kB[39m[2m | [22m
+[32mchunk-EZRM2Z6U.js[39m  [2m | [22m[2m-[22m                          [2m | [22m [36m13.61 kB[39m[2m | [22m
+[32mchunk-ID6K7DTA.js[39m  [2m | [22m[2morders-list-page-component[22m [2m | [22m  [36m9.27 kB[39m[2m | [22m
+[32mchunk-JKQQBH5Q.js[39m  [2m | [22m[2mlanding-page-component[22m     [2m | [22m  [36m6.15 kB[39m[2m | [22m
+
+Application bundle generation complete. [5.188 seconds]
+
+Watch mode enabled. Watching for file changes...
+NOTE: Raw file sizes do not reflect development server per-request transformations.
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m4300[22m/[39m

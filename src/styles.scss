@@ -1,0 +1,107 @@
+@layer tailwind-base, primeng, tailwind-utilities;
+
+@import 'primeicons/primeicons.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'IBM Plex Sans', sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+}
+
+@layer components {
+  .surface-panel {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .surface-card {
+    @apply rounded-xl border border-slate-200 bg-slate-50;
+  }
+
+  .section-eyebrow {
+    @apply text-xs font-medium uppercase tracking-[0.18em] text-slate-400;
+  }
+
+  .section-title {
+    @apply mt-2 font-heading text-2xl font-semibold tracking-tight text-slate-950;
+  }
+
+  .section-copy {
+    @apply mt-3 max-w-2xl text-sm leading-7 text-slate-600;
+  }
+
+  .stat-tile {
+    @apply rounded-xl border border-slate-200 bg-slate-50 px-4 py-4;
+  }
+
+  .stat-label {
+    @apply text-xs font-medium uppercase tracking-[0.18em] text-slate-400;
+  }
+
+  .stat-value {
+    @apply mt-2 font-heading text-lg font-semibold text-slate-950;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50;
+  }
+}
+
+.p-datatable {
+  font-size: 0.95rem;
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  border-color: #e2e8f0;
+  padding: 0.9rem 1rem;
+}
+
+.p-datatable .p-datatable-tbody > tr > td {
+  border-color: #e2e8f0;
+  color: #0f172a;
+  padding: 0.95rem 1rem;
+}
+
+.p-tag {
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.p-button {
+  box-shadow: none;
+}
+
+.p-button-label {
+  font-weight: 600;
+}
