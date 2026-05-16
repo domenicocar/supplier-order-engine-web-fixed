@@ -3,6 +3,7 @@ import { Observable, map } from 'rxjs';
 
 import {
   CreateOrderResponse,
+  ExportGeneratedFile,
   ExportOrderResponse,
   ExportedFile,
   GetOrderResponse,
@@ -64,9 +65,33 @@ export class OrdersService {
     );
   }
 
+  syncOrderItems(
+    orderId: string,
+    items: Array<{ ean: string; quantity: number; supplierId: string }>
+  ): Observable<{ orderId?: string; status?: string; itemsCount?: number | null }> {
+    return this.api
+      .post<unknown>(`/orders/${orderId}/items`, { items })
+      .pipe(
+        map((payload) => {
+          const source = this.unwrap(payload);
+          return {
+            orderId: this.pickString(source, ['orderId', 'id']),
+            status: this.pickString(source, ['status']),
+            itemsCount: this.pickNumber(source, ['itemsCount', 'items_count'])
+          };
+        })
+      );
+  }
+
   exportOrder(orderId: string): Observable<ExportOrderResponse> {
     return this.api.post<unknown>(`/orders/${orderId}/export`, {}).pipe(
       map((payload) => this.normalizeExportOrderResponse(payload))
+    );
+  }
+
+  downloadExportedFile(orderId: string, fileName: string): Observable<Blob> {
+    return this.api.getBlob(
+      `/orders/${orderId}/export/files/${encodeURIComponent(fileName)}`
     );
   }
 
@@ -213,6 +238,7 @@ export class OrdersService {
         this.pickString(orderSource, ['status']) ??
         this.pickString(source, ['status']),
       reviewItems,
+      files: this.normalizeExportGeneratedFiles(this.pickValue(source, ['files'])),
       exportResult
     };
   }
@@ -301,6 +327,25 @@ export class OrdersService {
           supplierId: this.pickString(entry, ['supplierId']),
           status: this.pickString(entry, ['status']),
           url: this.pickString(entry, ['url', 'downloadUrl'])
+        }
+      ];
+    });
+  }
+
+  private normalizeExportGeneratedFiles(value: unknown): ExportGeneratedFile[] {
+    return this.asArray(value).flatMap((entry, index): ExportGeneratedFile[] => {
+      if (!this.isRecord(entry)) {
+        return [];
+      }
+
+      const fileName =
+        this.pickString(entry, ['fileName', 'filename', 'name']) ??
+        `file-${index + 1}`;
+
+      return [
+        {
+          supplierName: this.pickString(entry, ['supplierName', 'supplier_name', 'supplierId']),
+          fileName
         }
       ];
     });

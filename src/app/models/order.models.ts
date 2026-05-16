@@ -28,6 +28,11 @@ export interface ExportedFile {
   url?: string;
 }
 
+export interface ExportGeneratedFile {
+  supplierName?: string;
+  fileName: string;
+}
+
 export interface OrderExportResult {
   filesExported: ExportedFile[];
   reviewItems: ReviewItem[];
@@ -103,6 +108,7 @@ export interface ImportOrderResponse {
 export interface ExportOrderResponse {
   status?: string;
   reviewItems: ReviewItem[];
+  files?: ExportGeneratedFile[];
   exportResult: OrderExportResult;
 }
 

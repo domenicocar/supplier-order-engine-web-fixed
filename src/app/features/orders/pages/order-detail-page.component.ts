@@ -1170,8 +1170,36 @@ export class OrderDetailPageComponent {
     this.pageError.set(null);
 
     try {
+      const exportItems = this.orderExportSummaryRows()
+        .filter(
+          (row) =>
+            typeof row.quantity === 'number' &&
+            Number.isFinite(row.quantity) &&
+            row.quantity > 0 &&
+            row.supplierId.trim().length > 0 &&
+            row.ean.trim().length > 0
+        )
+        .map((row) => ({
+          ean: row.ean,
+          quantity: row.quantity as number,
+          supplierId: row.supplierId
+        }));
+
+      await firstValueFrom(this.ordersService.syncOrderItems(orderId, exportItems));
       const response = await firstValueFrom(this.ordersService.exportOrder(orderId));
       this.ordersStore.setExportResult(orderId, response);
+
+      for (const file of response.files ?? []) {
+        const blob = await firstValueFrom(
+          this.ordersService.downloadExportedFile(orderId, file.fileName)
+        );
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = file.fileName;
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+      }
     } catch (error: unknown) {
       this.pageError.set(this.toMessage(error, 'Export ordine non riuscito.'));
     } finally {
