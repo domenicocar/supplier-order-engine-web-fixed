@@ -8,7 +8,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   template: `
     <div class="min-h-screen bg-slate-50">
       <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/95">
-        <div class="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-4 sm:px-6 lg:px-8">
+        <div class="mx-auto flex max-w-[95rem] items-center justify-between gap-6 px-4 py-4 sm:px-6 lg:px-8">
           <div class="flex items-center gap-4">
             <a
               routerLink="/landing"
@@ -46,7 +46,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
         </div>
       </header>
 
-      <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <main class="mx-auto max-w-[95rem] px-4 py-8 sm:px-6 lg:px-8">
         <router-outlet />
       </main>
     </div>

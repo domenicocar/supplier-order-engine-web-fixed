@@ -31,6 +31,10 @@ export class OrdersSessionStore {
       next[index] = {
         ...orders[index],
         ...order,
+        supplierComparisonRows:
+          order.supplierComparisonRows ?? orders[index].supplierComparisonRows,
+        importResult: order.importResult ?? orders[index].importResult,
+        exportResult: order.exportResult ?? orders[index].exportResult,
         supplierUploads: {
           ...orders[index].supplierUploads,
           ...order.supplierUploads
@@ -66,6 +70,19 @@ export class OrdersSessionStore {
               status: payload.status ?? order.status,
               reviewItems: payload.reviewItems,
               exportResult: payload.exportResult
+            }
+          : order
+      )
+    );
+  }
+
+  setSupplierComparisonRows(orderId: string, rows: NonNullable<SessionOrder['supplierComparisonRows']>): void {
+    this.ordersState.update((orders) =>
+      orders.map((order) =>
+        order.id === orderId
+          ? {
+              ...order,
+              supplierComparisonRows: rows
             }
           : order
       )

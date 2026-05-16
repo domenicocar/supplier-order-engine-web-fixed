@@ -35,12 +35,34 @@ export interface OrderExportResult {
   erroriExport: string[];
 }
 
+export interface SupplierComparisonOffer {
+  supplierId: string;
+  supplierName: string;
+  price: number | null;
+}
+
+export interface SupplierComparisonRow {
+  ean: string;
+  description: string;
+  quantity: number | null;
+  bestOffer: SupplierComparisonOffer | null;
+  availableSuppliers: SupplierComparisonOffer[];
+}
+
 export interface SupplierUploadResult {
   supplierId: string;
   fileName: string;
   uploadedAt: string;
   message?: string;
   files: ExportedFile[];
+  products: SupplierUploadProduct[];
+}
+
+export interface SupplierUploadProduct {
+  ean: string;
+  description?: string;
+  quantity: number | null;
+  price: number | null;
 }
 
 export interface SessionOrder {
@@ -49,6 +71,10 @@ export interface SessionOrder {
   createdAt: string;
   items: OrderItem[];
   reviewItems: ReviewItem[];
+  importPdfStatus?: PdfImportJobStatus;
+  importPdfItemsCount?: number | null;
+  importPdfError?: string | null;
+  supplierComparisonRows?: SupplierComparisonRow[];
   importResult?: OrderImportResult;
   exportResult?: OrderExportResult;
   supplierUploads: Record<string, SupplierUploadResult[]>;
@@ -58,15 +84,32 @@ export interface CreateOrderResponse {
   order: SessionOrder;
 }
 
+export interface GetOrderResponse {
+  order: SessionOrder;
+}
+
+export interface SupplierComparisonResponse {
+  rows: SupplierComparisonRow[];
+}
+
 export interface ImportOrderResponse {
+  success?: boolean;
   status?: string;
   items: OrderItem[];
   reviewItems: ReviewItem[];
-  importResult: OrderImportResult;
+  importResult?: OrderImportResult;
 }
 
 export interface ExportOrderResponse {
   status?: string;
   reviewItems: ReviewItem[];
   exportResult: OrderExportResult;
+}
+
+export type PdfImportJobStatus = 'idle' | 'processing' | 'completed' | 'failed';
+
+export interface PdfImportStatusResponse {
+  status: PdfImportJobStatus;
+  itemsCount: number;
+  error: string | null;
 }
