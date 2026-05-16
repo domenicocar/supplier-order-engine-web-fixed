@@ -1248,21 +1248,47 @@ export class OrderDetailPageComponent {
 
   private buildOrderExportSummaryRows(): OrderExportSummaryRow[] {
     const currentOrder = this.order();
+    const comparisonRows = this.supplierComparisonRows();
 
-    if (!currentOrder?.items.length) {
+    const orderItems = currentOrder?.items ?? [];
+
+    if (orderItems.length === 0 && comparisonRows.length === 0) {
       return [];
     }
 
+    const orderItemsByEan = new Map(
+      orderItems.map((item) => [item.ean, item] as const)
+    );
     const comparisonRowsByEan = new Map(
-      this.supplierComparisonRows().map((row) => [row.ean, row] as const)
+      comparisonRows.map((row) => [row.ean, row] as const)
     );
 
-    return currentOrder.items.map((item, index) => {
+    const manualComparisonRows = comparisonRows.filter((row) =>
+      !orderItemsByEan.has(row.ean) &&
+      typeof row.quantity === 'number' &&
+      Number.isFinite(row.quantity) &&
+      row.quantity > 0
+    );
+
+    const rowsToSummarize = [
+      ...orderItems.map((item) => ({
+        ean: item.ean,
+        description: item.description,
+        quantity: item.quantity
+      })),
+      ...manualComparisonRows.map((row) => ({
+        ean: row.ean,
+        description: row.description,
+        quantity: row.quantity
+      }))
+    ];
+
+    return rowsToSummarize.map((item, index) => {
       const comparisonRow = comparisonRowsByEan.get(item.ean);
+      const quantitySource = comparisonRow?.quantity ?? item.quantity;
       const normalizedQuantity =
-        typeof (comparisonRow?.quantity ?? item.quantity) === 'number' &&
-        Number.isFinite(comparisonRow?.quantity ?? item.quantity)
-          ? Math.max(0, comparisonRow?.quantity ?? item.quantity ?? 0)
+        typeof quantitySource === 'number' && Number.isFinite(quantitySource)
+          ? Math.max(0, quantitySource)
           : null;
       const foundInSuppliers = (comparisonRow?.availableSuppliers.length ?? 0) > 0;
       const selectedPrice = foundInSuppliers ? comparisonRow?.selectedPrice ?? null : null;
@@ -1270,12 +1296,6 @@ export class OrderDetailPageComponent {
         normalizedQuantity !== null && selectedPrice !== null
           ? normalizedQuantity * selectedPrice
           : null;
-
-      let missingReason: string | undefined;
-
-      if (!comparisonRow || !foundInSuppliers) {
-        missingReason = 'Non trovato nei listini dei fornitori caricati';
-      }
 
       return {
         ean: item.ean,
@@ -1287,7 +1307,7 @@ export class OrderDetailPageComponent {
         lineTotal,
         foundInSuppliers,
         availableSuppliersCount: comparisonRow?.availableSuppliers.length ?? 0,
-        missingReason
+        missingReason: foundInSuppliers ? undefined : 'Non trovato nei listini dei fornitori caricati'
       };
     });
   }
