@@ -21,7 +21,7 @@ import {
   SupplierComparisonOffer,
   SupplierComparisonRow
 } from '../../../models/order.models';
-import { SESSION_SUPPLIERS } from '../../../models/supplier.models';
+import { SupplierDefinition } from '../../../models/supplier.models';
 import { OrdersSessionStore } from '../../../services/orders-session.store';
 import { OrdersService } from '../../../services/orders.service';
 import { OrderExportTabComponent } from '../components/order-export-tab.component';
@@ -30,7 +30,8 @@ import {
   OrderExportSummaryRow,
   SupplierComparisonSelection,
   SupplierComparisonTableRow,
-  SupplierExportSummary
+  SupplierExportSummary,
+  UploadCardState
 } from '../components/order-detail-view.models';
 import { OrderImportTabComponent } from '../components/order-import-tab.component';
 import { OrderProductsTabComponent } from '../components/order-products-tab.component';
@@ -104,7 +105,7 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
               </div>
               <div class="stat-tile">
                 <p class="stat-label">Fornitori</p>
-                <p class="stat-value">{{ suppliers.length }}</p>
+                <p class="stat-value">{{ suppliers().length }}</p>
               </div>
             </div>
           </div>
@@ -132,18 +133,16 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
               <p-tabpanel value="import">
                 <app-order-import-tab
                   [order]="currentOrder"
-                  [suppliers]="suppliers"
+                  [suppliers]="suppliers()"
                   [selectedPdfFile]="selectedPdfFile()"
+                  [lastPdfFileName]="lastPdfFileName()"
                   [pdfUploading]="pdfUploading()"
                   [pdfImportStatus]="pdfImportStatus()"
                   [pdfImportMessage]="pdfImportMessage()"
                   [pdfImportRefreshWarning]="pdfImportRefreshWarning()"
-                  [supplierFiles]="supplierFiles()"
-                  [supplierLoadingState]="supplierLoadingState()"
-                  (pdfFileSelected)="onPdfFileSelected($event)"
-                  (pdfUploadRequested)="uploadPdf()"
+                  [supplierUploadState]="supplierUploadState()"
+                  (pdfUploadRequested)="onPdfFileSelected($event)"
                   (supplierFileSelected)="onSupplierFileSelected($event)"
-                  (supplierUploadRequested)="uploadSupplierFile($event)"
                 />
               </p-tabpanel>
 
@@ -209,10 +208,10 @@ export class OrderDetailPageComponent {
   private readonly ordersStore = inject(OrdersSessionStore);
   private readonly ordersService = inject(OrdersService);
 
-  readonly suppliers = SESSION_SUPPLIERS;
   readonly activeTab = signal<'import' | 'products' | 'comparison' | 'export'>('import');
   readonly orderLoading = signal(false);
   readonly selectedPdfFile = signal<File | null>(null);
+  readonly lastPdfFileName = signal<string | null>(null);
   readonly pdfUploading = signal(false);
   readonly pdfImportStatus = signal<PdfImportJobStatus>('idle');
   readonly pdfImportMessage = signal<string | null>(null);
@@ -224,8 +223,8 @@ export class OrderDetailPageComponent {
   readonly supplierComparisonError = signal<string | null>(null);
   readonly supplierComparisonSelections = signal<Record<string, SupplierComparisonSelection>>({});
   readonly supplierComparisonQuantities = signal<Record<string, number | null>>({});
-  readonly supplierFiles = signal<Record<string, File | null>>({});
   readonly supplierLoadingState = signal<Record<string, boolean>>({});
+  readonly supplierUploadState = signal<Record<string, UploadCardState>>({});
   readonly fetchedOrderIds = signal<Record<string, boolean>>({});
 
   readonly orderId = toSignal(
@@ -234,6 +233,7 @@ export class OrderDetailPageComponent {
   );
 
   readonly order = computed(() => this.ordersStore.orderById(this.orderId()));
+  readonly suppliers = computed(() => this.resolveSuppliers());
   readonly hasSupplierUploads = computed(() =>
     Object.values(this.order()?.supplierUploads ?? {}).some((uploads) => uploads.length > 0)
   );
@@ -271,16 +271,19 @@ export class OrderDetailPageComponent {
     );
   }
 
-  onPdfFileSelected(file: File | null): void {
+  onPdfFileSelected(file: File): void {
     this.selectedPdfFile.set(file);
+    this.lastPdfFileName.set(file.name);
 
     if (this.pdfImportStatus() !== 'processing') {
       this.resetPdfImportFeedback();
     }
+
+    void this.uploadPdf(file);
   }
 
-  async uploadPdf(): Promise<void> {
-    const file = this.selectedPdfFile();
+  async uploadPdf(fileFromEvent?: File): Promise<void> {
+    const file = fileFromEvent ?? this.selectedPdfFile();
     const orderId = this.orderId();
 
     if (!file || !orderId || this.pdfImportStatus() === 'processing') {
@@ -296,50 +299,52 @@ export class OrderDetailPageComponent {
 
       if (response.status === 'processing') {
         this.pdfImportStatus.set('processing');
+        this.pdfImportMessage.set('PDF ricevuto. Elaborazione in corso...');
         this.startPdfImportPolling(orderId);
         return;
       }
 
       if (response.importResult) {
+        this.pdfImportStatus.set('completed');
+        this.pdfImportMessage.set('Importazione completata con successo.');
         this.ordersStore.setImportResult(orderId, {
           status: response.status,
           items: response.items,
           reviewItems: response.reviewItems,
           importResult: response.importResult
         });
-        this.selectedPdfFile.set(null);
       }
     } catch (error: unknown) {
-      this.pageError.set(this.toMessage(error, 'Import PDF non riuscito.'));
+      this.pdfImportStatus.set('failed');
+      this.pdfImportMessage.set(this.toMessage(error, 'Import PDF non riuscito.'));
     } finally {
       this.pdfUploading.set(false);
     }
-  }
-
-  onSupplierFileSelected(payload: { supplierId: string; file: File | null }): void {
-    this.supplierFiles.update((files) => ({
-      ...files,
-      [payload.supplierId]: payload.file
-    }));
-  }
-
-  selectedSupplierFile(supplierId: string): File | null {
-    return this.supplierFiles()[supplierId] ?? null;
   }
 
   supplierUploading(supplierId: string): boolean {
     return this.supplierLoadingState()[supplierId] ?? false;
   }
 
-  async uploadSupplierFile(supplierId: string): Promise<void> {
+  onSupplierFileSelected(payload: { supplierId: string; file: File }): void {
+    void this.uploadSupplierFile(payload.supplierId, payload.file);
+  }
+
+  async uploadSupplierFile(supplierId: string, fileFromEvent?: File): Promise<void> {
     const orderId = this.orderId();
-    const file = this.selectedSupplierFile(supplierId);
+    const file = fileFromEvent;
 
     if (!orderId || !file) {
       return;
     }
 
     this.setSupplierLoading(supplierId, true);
+    this.setSupplierUploadState(supplierId, {
+      status: 'uploading',
+      fileName: file.name,
+      message: `Upload in corso per ${file.name}...`,
+      updatedAt: new Date().toISOString()
+    });
     this.pageError.set(null);
 
     try {
@@ -348,12 +353,19 @@ export class OrderDetailPageComponent {
       this.supplierComparisonRequested.set(false);
       this.supplierComparisonError.set(null);
       this.ordersStore.setSupplierComparisonRows(orderId, []);
-      this.supplierFiles.update((files) => ({
-        ...files,
-        [supplierId]: null
-      }));
+      this.setSupplierUploadState(supplierId, {
+        status: 'completed',
+        fileName: response.fileName,
+        message: response.message || 'Upload completato.',
+        updatedAt: response.uploadedAt
+      });
     } catch (error: unknown) {
-      this.pageError.set(this.toMessage(error, `Upload file fornitore ${supplierId} non riuscito.`));
+      this.setSupplierUploadState(supplierId, {
+        status: 'failed',
+        fileName: file.name,
+        message: this.toMessage(error, `Upload file fornitore ${supplierId} non riuscito.`),
+        updatedAt: new Date().toISOString()
+      });
     } finally {
       this.setSupplierLoading(supplierId, false);
     }
@@ -610,6 +622,53 @@ export class OrderDetailPageComponent {
     }));
   }
 
+  private setSupplierUploadState(supplierId: string, state: UploadCardState): void {
+    this.supplierUploadState.update((currentState) => ({
+      ...currentState,
+      [supplierId]: state
+    }));
+  }
+
+  private resolveSuppliers(): SupplierDefinition[] {
+    const currentOrder = this.order();
+
+    if (!currentOrder) {
+      return [];
+    }
+
+    const resolvedSuppliers = new Map<string, SupplierDefinition>();
+
+    for (const supplier of currentOrder.suppliers ?? []) {
+      if (supplier.id) {
+        resolvedSuppliers.set(supplier.id, supplier);
+      }
+    }
+
+    for (const row of currentOrder.supplierComparisonRows ?? []) {
+      for (const supplier of row.availableSuppliers) {
+        if (!resolvedSuppliers.has(supplier.supplierId)) {
+          resolvedSuppliers.set(supplier.supplierId, {
+            id: supplier.supplierId,
+            name: supplier.supplierName
+          });
+        }
+      }
+    }
+
+    for (const [supplierId, uploads] of Object.entries(currentOrder.supplierUploads)) {
+      if (!resolvedSuppliers.has(supplierId)) {
+        resolvedSuppliers.set(supplierId, {
+          id: supplierId,
+          name: uploads.at(-1)?.supplierId ?? supplierId
+        });
+      }
+    }
+
+    return Array.from(resolvedSuppliers.values()).sort((left, right) =>
+      left.name.localeCompare(right.name)
+    );
+  }
+
   private buildSupplierComparisonTableRows(): SupplierComparisonTableRow[] {
     const currentOrder = this.order();
 
@@ -665,7 +724,6 @@ export class OrderDetailPageComponent {
     if (statusResponse.status === 'completed') {
       this.pdfImportStatus.set('completed');
       this.pdfImportMessage.set(`Import completato: ${statusResponse.itemsCount} prodotti trovati`);
-      this.selectedPdfFile.set(null);
       this.stopPdfImportPolling();
       void this.refreshOrderAfterPdfImport(orderId);
       return;

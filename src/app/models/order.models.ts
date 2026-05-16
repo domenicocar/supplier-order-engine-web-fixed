@@ -1,3 +1,5 @@
+import { SupplierDefinition } from './supplier.models';
+
 export interface OrderItem {
   ean: string;
   quantity: number | null;
@@ -79,6 +81,7 @@ export interface SessionOrder {
   importPdfStatus?: PdfImportJobStatus;
   importPdfItemsCount?: number | null;
   importPdfError?: string | null;
+  suppliers?: SupplierDefinition[];
   supplierComparisonRows?: SupplierComparisonRow[];
   importResult?: OrderImportResult;
   exportResult?: OrderExportResult;

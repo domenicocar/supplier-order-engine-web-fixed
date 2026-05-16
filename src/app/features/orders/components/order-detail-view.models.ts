@@ -48,3 +48,12 @@ export interface OrderExportOverview {
   missingPricesCount: number;
   missingQuantitiesCount: number;
 }
+
+export type UploadCardStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
+
+export interface UploadCardState {
+  status: UploadCardStatus;
+  fileName: string | null;
+  message: string | null;
+  updatedAt?: string | null;
+}

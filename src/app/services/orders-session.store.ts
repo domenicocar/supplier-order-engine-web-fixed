@@ -31,6 +31,7 @@ export class OrdersSessionStore {
       next[index] = {
         ...orders[index],
         ...order,
+        suppliers: order.suppliers ?? orders[index].suppliers,
         supplierComparisonRows:
           order.supplierComparisonRows ?? orders[index].supplierComparisonRows,
         importResult: order.importResult ?? orders[index].importResult,

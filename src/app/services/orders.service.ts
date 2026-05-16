@@ -20,6 +20,7 @@ import {
   SupplierComparisonRow,
   SupplierUploadResult
 } from '../models/order.models';
+import { SupplierDefinition } from '../models/supplier.models';
 import { ApiService } from './api.service';
 
 @Injectable({
@@ -156,6 +157,10 @@ export class OrdersService {
       ]),
       importPdfError:
         this.pickString(orderSource, ['importPdfError', 'import_pdf_error']) ?? null,
+      suppliers: this.normalizeSuppliers(
+        this.pickValue(orderSource, ['suppliers', 'supplierList', 'vendors', 'providers', 'fornitori']) ??
+          this.pickValue(source, ['suppliers', 'supplierList', 'vendors', 'providers', 'fornitori'])
+      ),
       supplierComparisonRows: this.normalizeSupplierComparisonRows(
         this.pickValue(orderSource, ['supplierComparisonRows', 'supplier_comparison_rows'])
       ),
@@ -470,6 +475,28 @@ export class OrdersService {
         'cost'
       ])
     };
+  }
+
+  private normalizeSuppliers(value: unknown): SupplierDefinition[] {
+    const seen = new Set<string>();
+
+    return this.asArray(value).flatMap((entry): SupplierDefinition[] => {
+      if (!this.isRecord(entry)) {
+        return [];
+      }
+
+      const id = this.pickString(entry, ['id', 'supplierId', 'supplier_id', 'code']);
+      const name =
+        this.pickString(entry, ['name', 'supplierName', 'supplier_name', 'description']) ?? id;
+
+      if (!id || !name || seen.has(id)) {
+        return [];
+      }
+
+      seen.add(id);
+
+      return [{ id, name }];
+    });
   }
 
   private normalizeStringArray(value: unknown): string[] {
