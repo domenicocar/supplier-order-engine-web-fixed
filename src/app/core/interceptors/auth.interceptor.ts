@@ -6,7 +6,7 @@ import {
   HttpRequest
 } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable, catchError, from, switchMap, throwError } from 'rxjs';
+import { Observable, catchError, from, of, switchMap, throwError } from 'rxjs';
 
 import { API_BASE_URL } from '../tokens/api-base-url.token';
 import { AuthService } from '../../features/auth/services/auth.service';
@@ -23,15 +23,23 @@ export class AuthInterceptor implements HttpInterceptor {
       return next.handle(req);
     }
 
+    const sessionToken = this.authStore.session()?.access_token ?? null;
+
+    if (sessionToken) {
+      console.log('[AuthInterceptor] using in-memory session token', req.method, req.url);
+      return next.handle(this.cloneWithAuthorization(req, sessionToken)).pipe(
+        catchError((error: unknown) => this.handleHttpError(error))
+      );
+    }
+
+    console.log('[AuthInterceptor] resolving token via Supabase getSession', req.method, req.url);
     return from(this.authService.getAccessToken()).pipe(
+      catchError((error: unknown) => {
+        console.error('[AuthInterceptor] getAccessToken failed before request', error);
+        return of(null);
+      }),
       switchMap((token) => {
-        const authRequest = token
-          ? req.clone({
-              setHeaders: {
-                Authorization: `Bearer ${token}`
-              }
-            })
-          : req;
+        const authRequest = token ? this.cloneWithAuthorization(req, token) : req;
 
         return next.handle(authRequest).pipe(
           catchError((error: unknown) => this.handleHttpError(error))
@@ -52,6 +60,14 @@ export class AuthInterceptor implements HttpInterceptor {
     }
 
     return throwError(() => error);
+  }
+
+  private cloneWithAuthorization(req: HttpRequest<unknown>, token: string): HttpRequest<unknown> {
+    return req.clone({
+      setHeaders: {
+        Authorization: `Bearer ${token}`
+      }
+    });
   }
 
   private isSuspendedError(error: HttpErrorResponse): boolean {

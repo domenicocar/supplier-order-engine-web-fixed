@@ -19,6 +19,7 @@ export class AuthStore {
   readonly loading = signal(true);
   readonly suspendedMessage = signal<string | null>(null);
   readonly isAuthenticated = computed(() => !!this.session());
+  private authStateSubscribed = false;
 
   async initialize(): Promise<void> {
     if (this.initialized) {
@@ -31,15 +32,23 @@ export class AuthStore {
 
     this.loading.set(true);
     this.initializePromise = (async () => {
-      const session = await this.authService.getSession();
-      this.setSession(session);
+      console.log('[AuthStore] initialize:start');
 
-      this.authService.onAuthStateChange((nextSession) => {
-        this.setSession(nextSession);
-      });
-
-      this.initialized = true;
-      this.loading.set(false);
+      try {
+        const session = await this.authService.getSession();
+        console.log('[AuthStore] initialize:getSession resolved', !!session);
+        this.setSession(session);
+      } catch (error) {
+        console.error('[AuthStore] initialize:getSession failed', error);
+        this.setSession(null);
+      } finally {
+        this.ensureAuthStateSubscription();
+        this.initialized = true;
+        this.loading.set(false);
+        console.log('[AuthStore] initialize:done', {
+          authenticated: this.isAuthenticated()
+        });
+      }
     })().finally(() => {
       this.initializePromise = null;
     });
@@ -65,5 +74,17 @@ export class AuthStore {
   private setSession(session: Session | null): void {
     this.session.set(session);
     this.user.set(session?.user ?? null);
+  }
+
+  private ensureAuthStateSubscription(): void {
+    if (this.authStateSubscribed) {
+      return;
+    }
+
+    this.authService.onAuthStateChange((nextSession) => {
+      console.log('[AuthStore] onAuthStateChange', !!nextSession);
+      this.setSession(nextSession);
+    });
+    this.authStateSubscribed = true;
   }
 }

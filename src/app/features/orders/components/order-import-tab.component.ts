@@ -318,6 +318,7 @@ export class OrderImportTabComponent {
     const file = input.files?.[0] ?? null;
 
     if (file) {
+      console.log('[OrderImportTab] selected file name', file.name);
       this.pdfUploadRequested.emit(file);
     }
 

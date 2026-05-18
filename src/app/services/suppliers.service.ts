@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
-import { SupplierDefinition } from '../models/supplier.models';
+import { SupplierDefinition, SupplierStoredFile } from '../models/supplier.models';
 import { ApiService } from './api.service';
 
 @Injectable({
@@ -13,6 +13,12 @@ export class SuppliersService {
   getSuppliers(): Observable<SupplierDefinition[]> {
     return this.api.get<unknown>('/suppliers').pipe(
       map((payload) => this.normalizeSuppliers(payload))
+    );
+  }
+
+  getSupplierFiles(): Observable<SupplierStoredFile[]> {
+    return this.api.get<unknown>('/suppliers/files').pipe(
+      map((payload) => this.normalizeSupplierFiles(payload))
     );
   }
 
@@ -41,6 +47,43 @@ export class SuppliersService {
       seen.add(id);
 
       return [{ id, name }];
+    });
+  }
+
+  private normalizeSupplierFiles(payload: unknown): SupplierStoredFile[] {
+    const source = this.unwrap(payload);
+    const items =
+      (Array.isArray(payload) && payload) ||
+      this.pickValue(source, ['files', 'items', 'data', 'results']) ||
+      payload;
+
+    return this.asArray(items).flatMap((entry): SupplierStoredFile[] => {
+      if (!this.isRecord(entry)) {
+        return [];
+      }
+
+      const supplierId = this.pickString(entry, ['supplierId', 'supplier_id', 'id', 'code']);
+      const originalFileName = this.pickString(entry, [
+        'originalFileName',
+        'original_file_name',
+        'fileName',
+        'filename',
+        'name'
+      ]);
+
+      if (!supplierId || !originalFileName) {
+        return [];
+      }
+
+      return [
+        {
+          supplierId,
+          originalFileName,
+          uploadedAt:
+            this.pickString(entry, ['uploadedAt', 'uploaded_at', 'createdAt', 'created_at']) ??
+            null
+        }
+      ];
     });
   }
 
