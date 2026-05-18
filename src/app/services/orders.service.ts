@@ -37,6 +37,18 @@ export class OrdersService {
     );
   }
 
+  listOrders(): Observable<SessionOrder[]> {
+    return this.api.get<unknown>('/orders').pipe(
+      map((payload) => {
+        const source = this.unwrap(payload);
+        const items =
+          Array.isArray(payload) ? payload : this.pickValue(source, ['data', 'orders', 'items']);
+
+        return this.asArray(items).map((entry) => this.normalizeSessionOrder(entry));
+      })
+    );
+  }
+
   getOrderById(orderId: string): Observable<GetOrderResponse> {
     return this.api.get<unknown>(`/orders/${orderId}`).pipe(
       map((payload) => ({
@@ -68,7 +80,7 @@ export class OrdersService {
 
   syncOrderItems(
     orderId: string,
-    items: Array<{ ean: string; quantity: number; supplierId: string }>
+    items: Array<{ ean: string; quantity: number; supplierId?: string }>
   ): Observable<{ orderId?: string; status?: string; itemsCount?: number | null }> {
     return this.api
       .post<unknown>(`/orders/${orderId}/items`, { items })
@@ -108,24 +120,15 @@ export class OrdersService {
 
           return {
             supplierId,
-            fileName: file.name,
+            fileName:
+              this.pickString(source, ['originalFileName', 'fileName', 'filename']) ?? file.name,
             uploadedAt: new Date().toISOString(),
-            message: this.pickString(source, ['message', 'status', 'result']) ?? 'Upload completato',
-            files: this.normalizeExportedFiles(
-              this.pickValue(source, ['files', 'uploadedFiles', 'results'])
-            ),
-            products: this.normalizeSupplierUploadProducts(
-              this.pickValue(source, [
-                'products',
-                'items',
-                'articles',
-                'articoli',
-                'rows',
-                'priceList',
-                'listino',
-                'results'
-              ])
-            )
+            message:
+              this.pickString(source, ['status']) === 'uploaded'
+                ? 'Upload completato'
+                : this.pickString(source, ['message', 'status', 'result']) ?? 'Upload completato',
+            files: [],
+            products: []
           };
         })
       );
@@ -287,7 +290,8 @@ export class OrdersService {
             this.pickString(entry, ['description', 'descrizione', 'productName', 'name']) ??
             undefined,
           quantity: this.pickNumber(entry, ['quantity', 'qty', 'orderedQuantity']),
-          status: this.pickString(entry, ['status', 'itemStatus']) ?? 'PENDING'
+          status: this.pickString(entry, ['status', 'itemStatus']) ?? 'PENDING',
+          supplierId: this.pickString(entry, ['supplierId', 'supplier_id'])
         }
       ];
     });
@@ -421,11 +425,12 @@ export class OrdersService {
         return left.price - right.price;
       });
       const bestOffer =
-        this.normalizeSupplierComparisonOffer(
-          this.pickValue(entry, ['bestOffer', 'selectedOffer', 'lowestOffer'])
-        ) ??
+        this.normalizeSupplierComparisonOffer(this.pickValue(entry, ['bestOffer', 'lowestOffer'])) ??
         sortedSuppliers[0] ??
         null;
+      const selectedOffer =
+        this.normalizeSupplierComparisonOffer(this.pickValue(entry, ['selectedOffer'])) ??
+        bestOffer;
 
       return [
         {
@@ -435,6 +440,7 @@ export class OrdersService {
             'Descrizione non disponibile',
           quantity: this.pickNumber(entry, ['quantity', 'qty', 'orderedQuantity']),
           bestOffer,
+          selectedOffer,
           availableSuppliers: sortedSuppliers
         }
       ];

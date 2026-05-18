@@ -17,14 +17,14 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
       <div class="surface-panel flex flex-col gap-6 p-8 lg:flex-row lg:items-center lg:justify-between">
         <div class="max-w-2xl">
           <p class="text-sm font-medium uppercase tracking-[0.2em] text-slate-400">
-            Session orders
+            API orders
           </p>
           <h1 class="mt-3 font-heading text-3xl font-semibold tracking-tight text-slate-950">
-            Ordini creati nella sessione corrente
+            Ordini del tenant corrente
           </h1>
           <p class="mt-3 text-sm leading-7 text-slate-600 sm:text-base">
-            La V0 mantiene lo stato lato frontend solo in memoria: crei un ordine,
-            lo arricchisci con import/export e navighi nel dettaglio finché la sessione resta aperta.
+            Questa vista legge gli ordini dal backend ufficiale autenticato: puoi creare un draft,
+            riaprirlo in seguito e continuare il flusso di import, confronto ed export.
           </p>
         </div>
 
@@ -47,13 +47,23 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
         </div>
       }
 
-      @if (orders().length === 0) {
+      @if (loading()) {
+        <section class="surface-panel flex flex-col items-start gap-4 p-8">
+          <p class="font-heading text-2xl font-semibold text-slate-950">
+            Caricamento ordini...
+          </p>
+          <p class="max-w-xl text-sm leading-7 text-slate-600">
+            Sto leggendo gli ordini disponibili tramite
+            <code class="rounded bg-slate-900/5 px-1.5 py-0.5 text-xs text-slate-700">GET /orders</code>.
+          </p>
+        </section>
+      } @else if (orders().length === 0) {
         <section class="surface-panel flex flex-col items-start gap-4 p-8">
           <p class="font-heading text-2xl font-semibold text-slate-950">
             Nessun ordine creato
           </p>
           <p class="max-w-xl text-sm leading-7 text-slate-600">
-            Il primo passo della V0 è aprire una sessione ordine dal backend con
+            Il primo passo e aprire un draft ordine dal backend con
             <code class="rounded bg-slate-900/5 px-1.5 py-0.5 text-xs text-slate-700">POST /orders/create</code>,
             poi potrai importare PDF, caricare file fornitore ed esportare.
           </p>
@@ -93,7 +103,7 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
 
               <div class="mt-6 flex items-center justify-between text-sm font-medium text-slate-500">
                 <span>Apri dettaglio</span>
-                <span class="transition group-hover:translate-x-1">→</span>
+                <span class="transition group-hover:translate-x-1">-></span>
               </div>
             </a>
           }
@@ -109,7 +119,12 @@ export class OrdersListPageComponent {
 
   readonly orders = this.ordersStore.orders;
   readonly creating = signal(false);
+  readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+
+  constructor() {
+    void this.loadOrders();
+  }
 
   async createOrder(): Promise<void> {
     this.creating.set(true);
@@ -122,6 +137,20 @@ export class OrdersListPageComponent {
       this.error.set(this.toMessage(error, 'Creazione ordine non riuscita.'));
     } finally {
       this.creating.set(false);
+    }
+  }
+
+  private async loadOrders(): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+
+    try {
+      const orders = await firstValueFrom(this.ordersService.listOrders());
+      this.ordersStore.replaceOrders(orders);
+    } catch (error: unknown) {
+      this.error.set(this.toMessage(error, 'Caricamento ordini non riuscito.'));
+    } finally {
+      this.loading.set(false);
     }
   }
 

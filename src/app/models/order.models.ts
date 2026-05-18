@@ -5,6 +5,7 @@ export interface OrderItem {
   quantity: number | null;
   status: string;
   description?: string;
+  supplierId?: string;
 }
 
 export interface ReviewItem {
@@ -53,6 +54,7 @@ export interface SupplierComparisonRow {
   description: string;
   quantity: number | null;
   bestOffer: SupplierComparisonOffer | null;
+  selectedOffer: SupplierComparisonOffer | null;
   availableSuppliers: SupplierComparisonOffer[];
 }
 

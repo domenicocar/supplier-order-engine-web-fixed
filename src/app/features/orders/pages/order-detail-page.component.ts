@@ -15,6 +15,7 @@ import { switchMap } from 'rxjs/operators';
 import { TabsModule } from 'primeng/tabs';
 
 import {
+  OrderItem,
   PdfImportJobStatus,
   PdfImportStatusResponse,
   ReviewItem,
@@ -86,8 +87,8 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
               </div>
 
               <p class="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-                Dettaglio ordine riorganizzato in tab, con import, prodotti, confronto fornitori e
-                riepilogo/export separati in componenti dedicati.
+                Dettaglio ordine ufficiale: import, prodotti, confronto fornitori con scelta
+                esplicita del supplier e riepilogo/export sullo stesso draft server-side.
               </p>
             </div>
 
@@ -191,7 +192,8 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
           </a>
           <h1 class="font-heading text-3xl font-semibold text-slate-950">Ordine non trovato</h1>
           <p class="max-w-2xl text-sm leading-7 text-slate-600">
-            Non sono riuscito a trovare questo ordine nello store locale o nel backend.
+            Non sono riuscito a trovare questo ordine nel backend o non hai accesso al tenant
+            corretto.
             Riaprilo da
             <code class="rounded bg-slate-900/5 px-1.5 py-0.5 text-xs text-slate-700">/app/orders</code>
             e riprova.
@@ -204,6 +206,7 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
 })
 export class OrderDetailPageComponent {
   private pdfImportPollingSubscription: Subscription | null = null;
+  private draftSyncTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly ordersStore = inject(OrdersSessionStore);
@@ -259,7 +262,10 @@ export class OrderDetailPageComponent {
   readonly exportOverview = computed(() => this.buildExportOverview(this.orderExportSummaryRows()));
 
   constructor() {
-    this.destroyRef.onDestroy(() => this.stopPdfImportPolling());
+    this.destroyRef.onDestroy(() => {
+      this.stopPdfImportPolling();
+      this.clearDraftSyncTimeout();
+    });
 
     effect(
       () => {
@@ -274,7 +280,7 @@ export class OrderDetailPageComponent {
           this.supplierComparisonRequested.set(true);
         }
 
-        if (!currentOrder && !this.fetchedOrderIds()[orderId] && !this.orderLoading()) {
+        if (!this.fetchedOrderIds()[orderId] && !this.orderLoading()) {
           void this.loadOrder(orderId);
         }
 
@@ -404,6 +410,7 @@ export class OrderDetailPageComponent {
         selectedPrice: option.price
       }
     }));
+    this.scheduleDraftSync();
   }
 
   onSupplierComparisonQuantityChange(payload: { ean: string; quantity: number | null }): void {
@@ -411,6 +418,7 @@ export class OrderDetailPageComponent {
       ...quantities,
       [payload.ean]: payload.quantity
     }));
+    this.scheduleDraftSync();
   }
 
   onActiveTabChange(value: string | number): void {
@@ -454,20 +462,7 @@ export class OrderDetailPageComponent {
     this.pageError.set(null);
 
     try {
-      const exportItems = this.orderExportSummaryRows()
-        .filter(
-          (row) =>
-            typeof row.quantity === 'number' &&
-            Number.isFinite(row.quantity) &&
-            row.quantity > 0 &&
-            row.supplierId.trim().length > 0 &&
-            row.ean.trim().length > 0
-        )
-        .map((row) => ({
-          ean: row.ean,
-          quantity: row.quantity as number,
-          supplierId: row.supplierId
-        }));
+      const exportItems = this.buildPersistedOrderItemPayload();
 
       await firstValueFrom(this.ordersService.syncOrderItems(orderId, exportItems));
       const response = await firstValueFrom(this.ordersService.exportOrder(orderId));
@@ -710,7 +705,7 @@ export class OrderDetailPageComponent {
 
     return currentOrder.supplierComparisonRows
       .map((row) => {
-        const defaultOption = row.bestOffer ?? row.availableSuppliers[0] ?? null;
+        const defaultOption = row.selectedOffer ?? row.bestOffer ?? row.availableSuppliers[0] ?? null;
         const manualSelection = selections[row.ean];
         const selectedOption =
           row.availableSuppliers.find(
@@ -774,6 +769,23 @@ export class OrderDetailPageComponent {
     this.pdfImportPollingSubscription = null;
   }
 
+  private scheduleDraftSync(): void {
+    this.clearDraftSyncTimeout();
+    this.draftSyncTimeoutId = setTimeout(() => {
+      this.draftSyncTimeoutId = null;
+      void this.syncDraftItems();
+    }, 400);
+  }
+
+  private clearDraftSyncTimeout(): void {
+    if (this.draftSyncTimeoutId === null) {
+      return;
+    }
+
+    clearTimeout(this.draftSyncTimeoutId);
+    this.draftSyncTimeoutId = null;
+  }
+
   private resetPdfImportFeedback(): void {
     this.pdfImportStatus.set('idle');
     this.pdfImportMessage.set(null);
@@ -800,6 +812,55 @@ export class OrderDetailPageComponent {
         this.toMessage(error, 'Non sono riuscito a caricare il confronto fornitori.')
       );
     }
+  }
+
+  private async syncDraftItems(): Promise<void> {
+    const orderId = this.orderId();
+
+    if (!orderId) {
+      return;
+    }
+
+    const items = this.buildPersistedOrderItemPayload();
+
+    this.ordersStore.setOrderItems(orderId, this.buildLocalDraftItems(items));
+
+    try {
+      await firstValueFrom(this.ordersService.syncOrderItems(orderId, items));
+    } catch (error: unknown) {
+      this.pageError.set(
+        this.toMessage(error, 'Non sono riuscito a salvare le modifiche del draft ordine.')
+      );
+    }
+  }
+
+  private buildPersistedOrderItemPayload(): Array<{
+    ean: string;
+    quantity: number;
+    supplierId?: string;
+  }> {
+    return this.orderExportSummaryRows()
+      .filter(
+        (row) =>
+          typeof row.quantity === 'number' &&
+          Number.isFinite(row.quantity) &&
+          row.quantity > 0 &&
+          row.ean.trim().length > 0
+      )
+      .map((row) => ({
+        ean: row.ean,
+        quantity: row.quantity as number,
+        ...(row.supplierId ? { supplierId: row.supplierId } : {})
+      }));
+  }
+
+  private buildLocalDraftItems(
+    items: Array<{ ean: string; quantity: number; supplierId?: string }>
+  ): OrderItem[] {
+    return items.map((item) => ({
+      ...item,
+      status: 'PENDING'
+    }));
   }
 
   private toMessage(error: unknown, fallback: string): string {

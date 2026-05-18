@@ -1,6 +1,7 @@
 import { computed, Injectable, signal } from '@angular/core';
 
 import {
+  OrderItem,
   OrderExportResult,
   OrderImportResult,
   SessionOrder,
@@ -15,6 +16,10 @@ export class OrdersSessionStore {
 
   readonly orders = computed(() => this.ordersState());
 
+  replaceOrders(orders: SessionOrder[]): void {
+    this.ordersState.set(orders.map((order) => this.cloneOrder(order)));
+  }
+
   orderById(id: string): SessionOrder | undefined {
     return this.ordersState().find((order) => order.id === id);
   }
@@ -24,7 +29,7 @@ export class OrdersSessionStore {
       const index = orders.findIndex((current) => current.id === order.id);
 
       if (index === -1) {
-        return [order, ...orders];
+        return [this.cloneOrder(order), ...orders];
       }
 
       const next = [...orders];
@@ -90,6 +95,19 @@ export class OrdersSessionStore {
     );
   }
 
+  setOrderItems(orderId: string, items: OrderItem[]): void {
+    this.ordersState.update((orders) =>
+      orders.map((order) =>
+        order.id === orderId
+          ? {
+              ...order,
+              items: items.map((item) => ({ ...item }))
+            }
+          : order
+      )
+    );
+  }
+
   appendSupplierUpload(orderId: string, upload: SupplierUploadResult): void {
     this.ordersState.update((orders) =>
       orders.map((order) => {
@@ -108,5 +126,18 @@ export class OrdersSessionStore {
         };
       })
     );
+  }
+
+  private cloneOrder(order: SessionOrder): SessionOrder {
+    return {
+      ...order,
+      items: [...order.items],
+      reviewItems: [...order.reviewItems],
+      suppliers: order.suppliers ? [...order.suppliers] : undefined,
+      supplierComparisonRows: order.supplierComparisonRows
+        ? [...order.supplierComparisonRows]
+        : undefined,
+      supplierUploads: { ...order.supplierUploads }
+    };
   }
 }
