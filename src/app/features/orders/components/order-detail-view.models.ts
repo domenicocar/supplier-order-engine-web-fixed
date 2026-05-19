@@ -4,6 +4,7 @@ export interface SupplierComparisonSelection {
   selectedSupplierId: string;
   selectedSupplierName: string;
   selectedPrice: number | null;
+  selectedPackageSize: number;
 }
 
 export interface SupplierComparisonTableRow extends SupplierComparisonSelection {
@@ -18,9 +19,12 @@ export interface OrderExportSummaryRow {
   ean: string;
   description: string;
   quantity: number | null;
+  packageSize: number;
+  totalPieces: number | null;
   supplierId: string;
   supplierName: string;
   unitPrice: number | null;
+  packPrice: number | null;
   lineTotal: number | null;
   foundInSuppliers: boolean;
   availableSuppliersCount: number;

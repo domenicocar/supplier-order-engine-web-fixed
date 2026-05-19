@@ -149,7 +149,12 @@ import { formatPrice, reviewReason, severityTone } from './order-detail-view.uti
                               </p>
                             </div>
                             <div class="text-right">
-                              <p class="font-medium text-slate-950">x{{ item.quantity ?? '-' }}</p>
+                              <p class="font-medium text-slate-950">
+                                x{{ item.quantity ?? '-' }} cart. @if (item.packageSize > 1) { · conf. {{ item.packageSize }} }
+                              </p>
+                              @if (item.totalPieces !== null) {
+                                <p class="mt-1 text-xs text-slate-500">{{ item.totalPieces }} pezzi</p>
+                              }
                               <p class="mt-1 text-xs text-slate-500">{{ formatPrice(item.lineTotal) }}</p>
                             </div>
                           </li>
@@ -182,7 +187,8 @@ import { formatPrice, reviewReason, severityTone } from './order-detail-view.uti
                   <tr>
                     <th>EAN</th>
                     <th>Prodotto</th>
-                    <th>Qta</th>
+                    <th>Cartoni</th>
+                    <th>Confezione</th>
                     <th>Copertura</th>
                     <th>Fornitore</th>
                     <th>Prezzo</th>
@@ -194,6 +200,13 @@ import { formatPrice, reviewReason, severityTone } from './order-detail-view.uti
                     <td>{{ item.ean }}</td>
                     <td>{{ item.description }}</td>
                     <td>{{ item.quantity ?? '-' }}</td>
+                    <td>
+                      @if (item.packageSize > 1) {
+                        conf. {{ item.packageSize }}
+                      } @else {
+                        -
+                      }
+                    </td>
                     <td>
                       @if (item.foundInSuppliers) {
                         <div class="flex flex-col">
@@ -227,7 +240,14 @@ import { formatPrice, reviewReason, severityTone } from './order-detail-view.uti
                         }
                       </div>
                     </td>
-                    <td>{{ formatPrice(item.unitPrice) }}</td>
+                    <td>
+                      <div class="flex flex-col">
+                        <span>{{ formatPrice(item.unitPrice) }}</span>
+                        @if (item.packPrice !== null && item.packageSize > 1) {
+                          <span class="text-xs text-slate-500">{{ formatPrice(item.packPrice) }} / conf.</span>
+                        }
+                      </div>
+                    </td>
                     <td>{{ formatPrice(item.lineTotal) }}</td>
                   </tr>
                 </ng-template>

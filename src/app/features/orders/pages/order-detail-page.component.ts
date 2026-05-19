@@ -407,7 +407,8 @@ export class OrderDetailPageComponent {
       [payload.ean]: {
         selectedSupplierId: option.supplierId,
         selectedSupplierName: option.supplierName,
-        selectedPrice: option.price
+        selectedPrice: option.price,
+        selectedPackageSize: option.packageSize
       }
     }));
     this.scheduleDraftSync();
@@ -551,18 +552,26 @@ export class OrderDetailPageComponent {
           : null;
       const foundInSuppliers = (comparisonRow?.availableSuppliers.length ?? 0) > 0;
       const selectedPrice = foundInSuppliers ? comparisonRow?.selectedPrice ?? null : null;
+      const packageSize = foundInSuppliers ? comparisonRow?.selectedPackageSize ?? 1 : 1;
+      const packPrice =
+        selectedPrice !== null ? selectedPrice * packageSize : null;
+      const totalPieces =
+        normalizedQuantity !== null ? normalizedQuantity * packageSize : null;
       const lineTotal =
         normalizedQuantity !== null && selectedPrice !== null
-          ? normalizedQuantity * selectedPrice
+          ? normalizedQuantity * selectedPrice * packageSize
           : null;
 
       return {
         ean: item.ean,
         description: item.description ?? comparisonRow?.description ?? `Prodotto ${index + 1}`,
         quantity: normalizedQuantity,
+        packageSize,
+        totalPieces,
         supplierId: foundInSuppliers ? comparisonRow?.selectedSupplierId ?? '' : '',
         supplierName: foundInSuppliers ? comparisonRow?.selectedSupplierName ?? '' : '',
         unitPrice: selectedPrice,
+        packPrice,
         lineTotal,
         foundInSuppliers,
         availableSuppliersCount: comparisonRow?.availableSuppliers.length ?? 0,
@@ -591,7 +600,7 @@ export class OrderDetailPageComponent {
       };
 
       current.lineCount += 1;
-      current.totalQuantity += row.quantity ?? 0;
+      current.totalQuantity += row.totalPieces ?? 0;
       current.missingPricesCount += row.unitPrice === null ? 1 : 0;
       current.missingQuantitiesCount += row.quantity === null ? 1 : 0;
       current.items.push(row);
@@ -617,7 +626,7 @@ export class OrderDetailPageComponent {
       estimatedTotal: rows.reduce((sum, row) => sum + (row.lineTotal ?? 0), 0),
       productsCount: rows.length,
       suppliersCount: new Set(rows.map((row) => row.supplierId).filter(Boolean)).size,
-      totalQuantity: rows.reduce((sum, row) => sum + (row.quantity ?? 0), 0),
+      totalQuantity: rows.reduce((sum, row) => sum + (row.totalPieces ?? 0), 0),
       missingItemsCount: rows.filter((row) => !row.foundInSuppliers).length,
       assignedItemsCount: rows.filter((row) => !!row.supplierId).length,
       missingPricesCount: rows.filter((row) => row.foundInSuppliers && row.unitPrice === null).length,
@@ -720,6 +729,7 @@ export class OrderDetailPageComponent {
           selectedSupplierId: selectedOption?.supplierId ?? '',
           selectedSupplierName: selectedOption?.supplierName ?? '',
           selectedPrice: selectedOption?.price ?? null,
+          selectedPackageSize: selectedOption?.packageSize ?? 1,
           availableSuppliers: row.availableSuppliers
         };
       })

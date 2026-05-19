@@ -471,6 +471,8 @@ export class OrdersService {
     return {
       supplierId,
       supplierName,
+      packageSize:
+        this.pickNumber(value, ['packageSize', 'package_size', 'packSize', 'cf', 'conf']) ?? 1,
       price: this.pickNumber(value, [
         'price',
         'prezzo',

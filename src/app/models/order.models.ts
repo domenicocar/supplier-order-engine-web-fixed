@@ -46,6 +46,7 @@ export interface OrderExportResult {
 export interface SupplierComparisonOffer {
   supplierId: string;
   supplierName: string;
+  packageSize: number;
   price: number | null;
 }
 

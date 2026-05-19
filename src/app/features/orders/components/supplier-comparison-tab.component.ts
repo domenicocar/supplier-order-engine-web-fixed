@@ -95,7 +95,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                   <span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700">
                     {{ row.selectedSupplierName || 'Nessun fornitore' }}
                     @if (row.selectedSupplierName || row.selectedPrice !== null) {
-                      {{ ' ' + formatPrice(row.selectedPrice) }}
+                      {{ ' · ' + formatPrice(row.selectedPrice) + ' cad. · conf. ' + row.selectedPackageSize }}
                     }
                   </span>
                 </td>
