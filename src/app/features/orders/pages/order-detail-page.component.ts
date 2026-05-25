@@ -64,7 +64,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
           routerLink="/app/orders"
           class="app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
         >
-          Ã¢â€ Â Torna agli ordini
+          &larr; Torna agli ordini
         </a>
         <h1 class="font-heading text-3xl font-semibold text-[var(--app-text)]">Caricamento ordine...</h1>
         <p class="max-w-2xl text-sm leading-7 text-[var(--app-text-muted)]">
@@ -80,7 +80,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                 routerLink="/app/orders"
                 class="order-header__back app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
               >
-                Ã¢â€ Â Torna agli ordini
+                &larr; Torna agli ordini
               </a>
 
               <div class="order-header__title-row">
@@ -199,7 +199,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
             routerLink="/app/orders"
             class="app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
           >
-            Ã¢â€ Â Torna agli ordini
+            &larr; Torna agli ordini
           </a>
           <h1 class="font-heading text-3xl font-semibold text-[var(--app-text)]">Ordine non trovato</h1>
           <p class="max-w-2xl text-sm leading-7 text-[var(--app-text-muted)]">
@@ -293,7 +293,7 @@ export class OrderDetailPageComponent {
       return '';
     }
 
-    return `${this.capitalize(this.italianMetaDateFormatter.format(date))} â€¢ ${this.italianTimeFormatter.format(date)}`;
+    return `${this.capitalize(this.italianMetaDateFormatter.format(date))} - ${this.italianTimeFormatter.format(date)}`;
   }
 
   formatCompactPrice(value: number): string {
