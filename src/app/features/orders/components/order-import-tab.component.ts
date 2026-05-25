@@ -50,11 +50,11 @@ type SupplierMappingField =
           </p>
         </div>
 
-        <div>
+        <div class="max-w-2xl">
           <label
             [for]="orderFileInputId"
             [class]="uploadCardClass(orderFileCardState().status)"
-            class="group block cursor-pointer rounded-3xl border bg-white p-8 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
+            class="group block cursor-pointer rounded-3xl border bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
           >
             <input
               [id]="orderFileInputId"
@@ -70,19 +70,19 @@ type SupplierMappingField =
             >
               <div
                 [class]="iconWrapClass(orderFileCardState().status)"
-                class="mb-5 flex h-20 w-20 items-center justify-center rounded-full"
+                class="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
               >
-                <i class="pi pi-file-import text-3xl"></i>
+                <i class="pi pi-file-import text-2xl"></i>
               </div>
 
-              <h3 class="text-xl font-semibold text-slate-950">File ordine</h3>
-              <p class="mt-3 max-w-md text-sm leading-6 text-slate-500">
+              <h3 class="text-lg font-semibold text-slate-950">File ordine</h3>
+              <p class="mt-2 max-w-md text-sm leading-6 text-slate-500">
                 PDF, Excel o CSV. Se il file contiene colonne, potrai confermare
                 il mapping prima di importare.
               </p>
 
               <div
-                class="mt-6 flex flex-wrap items-center justify-center gap-3"
+                class="mt-5 flex flex-wrap items-center justify-center gap-3"
               >
                 <span
                   [class]="statusBadgeClass(orderFileCardState().status)"
@@ -99,8 +99,15 @@ type SupplierMappingField =
                 }
               </div>
 
+              @if (order().importResult && orderFileCardState().status === 'completed') {
+                <div class="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                  <i class="pi pi-check-circle text-[0.7rem]" aria-hidden="true"></i>
+                  <span>{{ order().importResult?.importedItems?.length ?? 0 }} prodotti nel draft</span>
+                </div>
+              }
+
               <p
-                class="mt-4 text-sm font-medium"
+                class="mt-3 text-sm font-medium"
                 [class]="statusMessageClass(orderFileCardState().status)"
               >
                 {{ orderFileCardState().message }}
@@ -736,6 +743,7 @@ export class OrderImportTabComponent {
   readonly orderFileCardState = computed<UploadCardState>(() => {
     const previewState = this.orderImportPreviewState();
     const fileName = previewState?.file?.name ?? null;
+    const importResult = this.order().importResult;
 
     if (this.orderFileUploading()) {
       return {
@@ -762,6 +770,16 @@ export class OrderImportTabComponent {
           (previewState.preview.requiresMapping
             ? "Conferma il mapping delle colonne per completare l'import."
             : 'Anteprima pronta. Conferma per importare.'),
+      };
+    }
+
+    if (importResult) {
+      return {
+        status: 'completed',
+        fileName,
+        message:
+          this.orderFileMessage() ||
+          `${importResult.importedItems.length} prodotti già importati nel draft.`,
       };
     }
 
