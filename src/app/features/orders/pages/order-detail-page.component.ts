@@ -66,12 +66,12 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
       <section class="surface-panel flex flex-col gap-4 p-8">
         <a
           routerLink="/app/orders"
-          class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 no-underline transition hover:text-slate-900"
+          class="app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
         >
           ← Torna agli ordini
         </a>
-        <h1 class="font-heading text-3xl font-semibold text-slate-950">Caricamento ordine...</h1>
-        <p class="max-w-2xl text-sm leading-7 text-slate-600">
+        <h1 class="font-heading text-3xl font-semibold text-[var(--app-text)]">Caricamento ordine...</h1>
+        <p class="max-w-2xl text-sm leading-7 text-[var(--app-text-muted)]">
           Sto recuperando il dettaglio ordine e preparando i dati dei tab.
         </p>
       </section>
@@ -82,19 +82,19 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
             <div class="max-w-3xl">
               <a
                 routerLink="/app/orders"
-                class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 no-underline transition hover:text-slate-900"
+                class="app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
               >
                 ← Torna agli ordini
               </a>
 
               <div class="mt-4 flex flex-wrap items-center gap-3">
-                <h1 class="font-heading text-3xl font-semibold tracking-tight text-slate-950">
+                <h1 class="font-heading text-3xl font-semibold tracking-tight text-[var(--app-text)]">
                   Ordine {{ currentOrder.id }}
                 </h1>
                 <app-status-tag [label]="currentOrder.status" />
               </div>
 
-              <p class="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+              <p class="mt-4 max-w-2xl text-sm leading-7 text-[var(--app-text-muted)] sm:text-base">
                 Dettaglio ordine ufficiale: import, prodotti, confronto fornitori con scelta
                 esplicita del supplier e riepilogo/export sullo stesso draft server-side.
               </p>
@@ -121,7 +121,7 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
           </div>
 
           @if (pageError()) {
-            <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div class="app-alert-error">
               {{ pageError() }}
             </div>
           }
@@ -197,16 +197,16 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
         <section class="surface-panel flex flex-col gap-4 p-8">
           <a
             routerLink="/app/orders"
-            class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 no-underline transition hover:text-slate-900"
+            class="app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
           >
             ← Torna agli ordini
           </a>
-          <h1 class="font-heading text-3xl font-semibold text-slate-950">Ordine non trovato</h1>
-          <p class="max-w-2xl text-sm leading-7 text-slate-600">
+          <h1 class="font-heading text-3xl font-semibold text-[var(--app-text)]">Ordine non trovato</h1>
+          <p class="max-w-2xl text-sm leading-7 text-[var(--app-text-muted)]">
             Non sono riuscito a trovare questo ordine nel backend o non hai accesso al tenant
             corretto.
             Riaprilo da
-            <code class="rounded bg-slate-900/5 px-1.5 py-0.5 text-xs text-slate-700">/app/orders</code>
+            <code class="app-code">/app/orders</code>
             e riprova.
           </p>
         </section>

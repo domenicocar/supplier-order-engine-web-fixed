@@ -21,14 +21,14 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
       <h2 class="section-title">Confronto prodotti fornitori</h2>
       <p class="section-copy">
         Ogni riga rappresenta un EAN trovato nei listini caricati. Puoi scegliere il
-        fornitore piu conveniente o quello piu adatto.
+        fornitore più conveniente o quello più adatto.
       </p>
 
       <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <button
           pButton
           type="button"
-          class="justify-center !rounded-2xl !bg-slate-950 !px-5 !py-3 !text-sm !font-semibold !text-white"
+          class="btn-primary justify-center !rounded-2xl !px-5 !py-3 !text-sm !font-semibold"
           [disabled]="!hasSupplierUploads() || loading()"
           (click)="loadRequested.emit()"
         >
@@ -36,7 +36,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         </button>
 
         @if (loading()) {
-          <p class="text-sm text-slate-500">Confronto fornitori in corso...</p>
+          <p class="text-sm text-[var(--app-text-muted)]">Confronto fornitori in corso...</p>
         }
       </div>
 
@@ -44,35 +44,35 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         <input
           type="search"
           placeholder="Cerca per EAN, descrizione o fornitore..."
-          class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700"
+          class="app-input w-full"
           [value]="searchTerm()"
           (input)="onSearchChange($event)"
         />
       </div>
 
       @if (error()) {
-        <div class="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-700">
+        <div class="app-alert-error mt-4">
           {{ error() }}
         </div>
       }
 
       @if (!requested() && rows().length === 0) {
-        <p class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+        <p class="mt-6 rounded-2xl border border-dashed border-[var(--app-border-strong)] bg-[var(--app-surface-muted)] px-4 py-4 text-sm text-[var(--app-text-muted)]">
           Carica i file fornitori, poi clicca Confronta per visualizzare la tabella prezzi.
         </p>
       } @else if (filteredRows().length === 0 && !loading()) {
-        <p class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+        <p class="mt-6 rounded-2xl border border-dashed border-[var(--app-border-strong)] bg-[var(--app-surface-muted)] px-4 py-4 text-sm text-[var(--app-text-muted)]">
           Non sono stati trovati prodotti confrontabili nei file caricati.
         </p>
       } @else {
-        <div class="mt-6 overflow-hidden rounded-2xl border border-slate-200">
+        <div class="mt-6 overflow-hidden rounded-2xl border border-[var(--app-border)]">
           <p-table [value]="paginatedRows()" responsiveLayout="scroll">
             <ng-template pTemplate="header">
               <tr>
                 <th>EAN</th>
                 <th>Descrizione</th>
-                <th>Quantita</th>
-                <th>Prezzo scelto (miglior prezzo)</th>
+                <th>Quantità</th>
+                <th>Prezzo scelto</th>
                 <th>Fornitori disponibili</th>
               </tr>
             </ng-template>
@@ -86,13 +86,13 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                     min="0"
                     step="1"
                     placeholder="0"
-                    class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+                    class="app-input w-full rounded-xl px-3 py-2"
                     [value]="row.quantity ?? ''"
                     (input)="onQuantityChange(row.ean, $event)"
                   />
                 </td>
                 <td class="min-w-56">
-                  <span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700">
+                  <span class="app-pill rounded-full px-3 py-2 text-xs">
                     {{ row.selectedSupplierName || 'Nessun fornitore' }}
                     @if (row.selectedSupplierName || row.selectedPrice !== null) {
                       {{ ' · ' + formatPrice(row.selectedPrice) + ' cad. · conf. ' + row.selectedPackageSize }}
@@ -102,7 +102,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                 <td class="min-w-56">
                   <div class="flex flex-col gap-2">
                     <select
-                      class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+                      class="app-input w-full rounded-xl px-3 py-2"
                       [value]="row.selectedSupplierId"
                       [disabled]="row.availableSuppliers.length === 0"
                       (change)="onSelectionChange(row.ean, $event)"
@@ -113,7 +113,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                         </option>
                       }
                     </select>
-                    <p class="px-1 text-xs text-slate-500">
+                    <p class="px-1 text-xs text-[var(--app-text-muted)]">
                       {{ supplierAvailabilityLabel(row.availableSuppliers.length) }}
                     </p>
                   </div>
@@ -122,7 +122,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
             </ng-template>
             <ng-template pTemplate="emptymessage">
               <tr>
-                <td colspan="5" class="px-4 py-5 text-sm text-slate-500">
+                <td colspan="5" class="px-4 py-5 text-sm text-[var(--app-text-muted)]">
                   Nessun prodotto corrisponde alla ricerca corrente.
                 </td>
               </tr>
@@ -131,25 +131,25 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         </div>
 
         <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p class="text-sm text-slate-500">{{ rangeLabel() }}</p>
+          <p class="text-sm text-[var(--app-text-muted)]">{{ rangeLabel() }}</p>
 
           <div class="flex items-center gap-2">
             <button
               pButton
               type="button"
-              class="justify-center !rounded-2xl !border !border-slate-300 !bg-white !px-4 !py-2 !text-sm !font-semibold !text-slate-700"
+              class="btn-secondary justify-center !rounded-2xl !px-4 !py-2 !text-sm !font-semibold"
               [disabled]="currentPage() === 1"
               (click)="goToPreviousPage()"
             >
               Precedente
             </button>
-            <span class="text-sm text-slate-500">
+            <span class="text-sm text-[var(--app-text-muted)]">
               Pagina {{ displayPage() }} di {{ totalPages() }}
             </span>
             <button
               pButton
               type="button"
-              class="justify-center !rounded-2xl !border !border-slate-300 !bg-white !px-4 !py-2 !text-sm !font-semibold !text-slate-700"
+              class="btn-secondary justify-center !rounded-2xl !px-4 !py-2 !text-sm !font-semibold"
               [disabled]="currentPage() >= totalPages()"
               (click)="goToNextPage()"
             >
