@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -46,18 +45,15 @@ import {
 import { OrderImportTabComponent } from '../components/order-import-tab.component';
 import { OrderProductsTabComponent } from '../components/order-products-tab.component';
 import { SupplierComparisonTabComponent } from '../components/supplier-comparison-tab.component';
-import { StatusTagComponent } from '../../../shared/components/status-tag.component';
 
 @Component({
   selector: 'app-order-detail-page',
   standalone: true,
   imports: [
-    DatePipe,
     OrderExportTabComponent,
     OrderImportTabComponent,
     OrderProductsTabComponent,
     RouterLink,
-    StatusTagComponent,
     SupplierComparisonTabComponent,
     TabsModule
   ],
@@ -78,45 +74,49 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
     } @else {
       @if (order(); as currentOrder) {
         <section class="flex flex-col gap-6">
-          <div class="surface-panel flex flex-col gap-6 p-8 lg:flex-row lg:items-start lg:justify-between">
-            <div class="max-w-3xl">
+          <div class="order-header surface-panel">
+            <div class="order-header__main">
               <a
                 routerLink="/app/orders"
-                class="app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
+                class="order-header__back app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
               >
                 ← Torna agli ordini
               </a>
 
-              <div class="mt-4 flex flex-wrap items-center gap-3">
-                <h1 class="font-heading text-3xl font-semibold tracking-tight text-[var(--app-text)]">
-                  Ordine {{ currentOrder.id }}
+              <div class="order-header__title-row">
+                <h1 class="order-header__title">
+                  {{ orderDisplayLabel(currentOrder.createdAt) }}
                 </h1>
-                <app-status-tag [label]="currentOrder.status" />
+                <span class="order-header__status-pill">
+                  {{ orderStatusLabel(currentOrder.status) }}
+                </span>
               </div>
 
-              <p class="mt-4 max-w-2xl text-sm leading-7 text-[var(--app-text-muted)] sm:text-base">
-                Dettaglio ordine ufficiale: import, prodotti, confronto fornitori con scelta
-                esplicita del supplier e riepilogo/export sullo stesso draft server-side.
+              <p class="order-header__subtitle">
+                {{ orderMetaLine(currentOrder.createdAt, currentOrder.items.length, suppliers().length) }}
               </p>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 sm:min-w-[22rem]">
-              <div class="stat-tile">
-                <p class="stat-label">Creato</p>
-                <p class="stat-value">{{ currentOrder.createdAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+            <div class="order-header__metrics">
+              <div class="order-metric-pill">
+                <span class="order-metric-pill__icon">📦</span>
+                <span class="order-metric-pill__value">{{ currentOrder.items.length }}</span>
+                <span class="order-metric-pill__label">prodotti</span>
               </div>
-              <div class="stat-tile">
-                <p class="stat-label">Prodotti</p>
-                <p class="stat-value">{{ currentOrder.items.length }}</p>
+              <div class="order-metric-pill">
+                <span class="order-metric-pill__icon">🏪</span>
+                <span class="order-metric-pill__value">{{ suppliers().length }}</span>
+                <span class="order-metric-pill__label">fornitori</span>
               </div>
-              <div class="stat-tile">
-                <p class="stat-label">Review</p>
-                <p class="stat-value">{{ currentOrder.reviewItems.length }}</p>
-              </div>
-              <div class="stat-tile">
-                <p class="stat-label">Fornitori</p>
-                <p class="stat-value">{{ suppliers().length }}</p>
-              </div>
+              @if (exportOverview(); as overview) {
+                @if (overview.estimatedTotal !== null) {
+                  <div class="order-metric-pill order-metric-pill--accent">
+                    <span class="order-metric-pill__icon">💰</span>
+                    <span class="order-metric-pill__value">{{ formatCompactPrice(overview.estimatedTotal) }}</span>
+                    <span class="order-metric-pill__label">totale stimato</span>
+                  </div>
+                }
+              }
             </div>
           </div>
 
@@ -216,6 +216,25 @@ import { StatusTagComponent } from '../../../shared/components/status-tag.compon
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OrderDetailPageComponent {
+  private readonly italianShortDateFormatter = new Intl.DateTimeFormat('it-IT', {
+    day: '2-digit',
+    month: 'short'
+  });
+  private readonly italianMetaDateFormatter = new Intl.DateTimeFormat('it-IT', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+  private readonly italianTimeFormatter = new Intl.DateTimeFormat('it-IT', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  private readonly compactCurrencyFormatter = new Intl.NumberFormat('it-IT', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  });
   private draftSyncTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
@@ -240,6 +259,45 @@ export class OrderDetailPageComponent {
   readonly supplierPreviewState = signal<Record<string, SupplierUploadPreviewState>>({});
   readonly supplierCreating = signal(false);
   readonly fetchedOrderIds = signal<Record<string, boolean>>({});
+
+  orderDisplayLabel(createdAt: string): string {
+    const date = this.parseDate(createdAt);
+
+    if (!date) {
+      return 'Ordine';
+    }
+
+    const formatted = this.italianShortDateFormatter.format(date);
+    return `Ordine ${this.capitalize(formatted)}`;
+  }
+
+  orderStatusLabel(status: string | undefined): string {
+    const normalized = (status ?? '').trim().toLowerCase();
+
+    if (normalized === 'draft') {
+      return 'Bozza';
+    }
+
+    if (!normalized) {
+      return 'Ordine';
+    }
+
+    return this.capitalize(normalized);
+  }
+
+  orderMetaLine(createdAt: string, productsCount: number, suppliersCount: number): string {
+    const date = this.parseDate(createdAt);
+
+    if (!date) {
+      return `${productsCount} prodotti • ${suppliersCount} fornitori`;
+    }
+
+    return `${this.capitalize(this.italianMetaDateFormatter.format(date))} • ${this.italianTimeFormatter.format(date)} • ${productsCount} prodotti • ${suppliersCount} fornitori`;
+  }
+
+  formatCompactPrice(value: number): string {
+    return this.compactCurrencyFormatter.format(value);
+  }
 
   readonly orderId = toSignal(
     this.route.paramMap.pipe(map((params) => params.get('id') ?? '')),
@@ -289,6 +347,23 @@ export class OrderDetailPageComponent {
 
   onOrderFileSelected(file: File): void {
     void this.previewOrderImportFile(file);
+  }
+
+  private parseDate(value: string | null | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  private capitalize(value: string): string {
+    if (!value) {
+      return value;
+    }
+
+    return value.charAt(0).toUpperCase() + value.slice(1);
   }
 
   async onOrderImportConfirmed(payload: {

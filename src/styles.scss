@@ -255,6 +255,110 @@ a {
     @apply inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold;
   }
 
+  .order-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: 1.5rem;
+  }
+
+  .order-header__main {
+    min-width: 0;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.35rem;
+  }
+
+  .order-header__back {
+    margin-bottom: 0.1rem;
+  }
+
+  .order-header__title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .order-header__title {
+    margin: 0;
+    color: var(--app-text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+  }
+
+  .order-header__status-pill {
+    border: 1px solid rgba(37, 99, 235, 0.16);
+    background: var(--brand-primary-soft);
+    color: var(--brand-primary);
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .order-header__subtitle {
+    margin: 0;
+    color: var(--app-text-muted);
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .order-header__metrics {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.6rem;
+    overflow-x: auto;
+    padding-bottom: 0.1rem;
+  }
+
+  .order-metric-pill {
+    border: 1px solid var(--app-border);
+    background: var(--app-surface-muted);
+    color: var(--app-text);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    padding: 0.6rem 0.9rem;
+    white-space: nowrap;
+  }
+
+  .order-metric-pill--accent {
+    border-color: rgba(16, 185, 129, 0.32);
+    background: var(--brand-tertiary-soft);
+    color: #1f6a46;
+  }
+
+  .order-metric-pill__icon {
+    font-size: 0.95rem;
+    line-height: 1;
+  }
+
+  .order-metric-pill__value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .order-metric-pill__label {
+    color: var(--app-text-muted);
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1;
+  }
+
   .summary-hero {
     display: grid;
     gap: 1.25rem;
@@ -378,6 +482,11 @@ a {
 }
 
 @media (max-width: 1023px) {
+  .order-header {
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
   .summary-hero__stats {
     grid-template-columns: 1fr;
     text-align: left;
@@ -385,6 +494,20 @@ a {
 
   .summary-hero__stat {
     text-align: left;
+  }
+}
+
+@media (max-width: 767px) {
+  .order-header {
+    flex-direction: column;
+  }
+
+  .order-header__title {
+    font-size: 1.45rem;
+  }
+
+  .order-header__metrics {
+    width: 100%;
   }
 }
 
