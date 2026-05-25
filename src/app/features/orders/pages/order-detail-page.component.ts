@@ -64,7 +64,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
           routerLink="/app/orders"
           class="app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
         >
-          ← Torna agli ordini
+          Ã¢â€ Â Torna agli ordini
         </a>
         <h1 class="font-heading text-3xl font-semibold text-[var(--app-text)]">Caricamento ordine...</h1>
         <p class="max-w-2xl text-sm leading-7 text-[var(--app-text-muted)]">
@@ -80,7 +80,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                 routerLink="/app/orders"
                 class="order-header__back app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
               >
-                ← Torna agli ordini
+                Ã¢â€ Â Torna agli ordini
               </a>
 
               <div class="order-header__title-row">
@@ -199,7 +199,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
             routerLink="/app/orders"
             class="app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
           >
-            ← Torna agli ordini
+            Ã¢â€ Â Torna agli ordini
           </a>
           <h1 class="font-heading text-3xl font-semibold text-[var(--app-text)]">Ordine non trovato</h1>
           <p class="max-w-2xl text-sm leading-7 text-[var(--app-text-muted)]">
@@ -259,6 +259,7 @@ export class OrderDetailPageComponent {
   readonly supplierPreviewState = signal<Record<string, SupplierUploadPreviewState>>({});
   readonly supplierCreating = signal(false);
   readonly fetchedOrderIds = signal<Record<string, boolean>>({});
+  readonly autoComparisonAttemptedOrderIds = signal<Record<string, boolean>>({});
 
   orderDisplayLabel(createdAt: string): string {
     const date = this.parseDate(createdAt);
@@ -292,7 +293,7 @@ export class OrderDetailPageComponent {
       return '';
     }
 
-    return `${this.capitalize(this.italianMetaDateFormatter.format(date))} � ${this.italianTimeFormatter.format(date)}`;
+    return `${this.capitalize(this.italianMetaDateFormatter.format(date))} â€¢ ${this.italianTimeFormatter.format(date)}`;
   }
 
   formatCompactPrice(value: number): string {
@@ -340,6 +341,35 @@ export class OrderDetailPageComponent {
         if (!this.fetchedOrderIds()[orderId] && !this.orderLoading()) {
           void this.loadOrder(orderId);
         }
+      },
+      { allowSignalWrites: true }
+    );
+
+    effect(
+      () => {
+        const orderId = this.orderId();
+        const currentOrder = this.order();
+        const hasUploads = this.hasSupplierUploads();
+        const hasComparisonRows = (currentOrder?.supplierComparisonRows?.length ?? 0) > 0;
+        const hasOrderItems = (currentOrder?.items?.length ?? 0) > 0;
+        const comparisonRequested = this.supplierComparisonRequested();
+        const comparisonLoading = this.supplierComparisonLoading();
+        const autoAttempted = orderId ? this.autoComparisonAttemptedOrderIds()[orderId] ?? false : false;
+
+        if (!orderId || !currentOrder) {
+          return;
+        }
+
+        if (!hasOrderItems || !hasUploads || hasComparisonRows) {
+          return;
+        }
+
+        if (comparisonRequested || comparisonLoading || autoAttempted) {
+          return;
+        }
+
+        this.markAutoComparisonAsAttempted(orderId);
+        void this.autoLoadSupplierComparison(orderId);
       },
       { allowSignalWrites: true }
     );
@@ -700,6 +730,13 @@ export class OrderDetailPageComponent {
     }));
   }
 
+  private markAutoComparisonAsAttempted(orderId: string): void {
+    this.autoComparisonAttemptedOrderIds.update((state) => ({
+      ...state,
+      [orderId]: true
+    }));
+  }
+
   private buildOrderExportSummaryRows(): OrderExportSummaryRow[] {
     const currentOrder = this.order();
     const comparisonRows = this.supplierComparisonRows();
@@ -979,6 +1016,22 @@ export class OrderDetailPageComponent {
     }
   }
 
+  private async autoLoadSupplierComparison(orderId: string): Promise<void> {
+    if (this.supplierComparisonLoading()) {
+      return;
+    }
+
+    this.supplierComparisonRequested.set(true);
+    this.supplierComparisonLoading.set(true);
+    this.supplierComparisonError.set(null);
+
+    try {
+      await this.refreshSupplierComparison(orderId);
+    } finally {
+      this.supplierComparisonLoading.set(false);
+    }
+  }
+
   private async syncDraftItems(): Promise<void> {
     const orderId = this.orderId();
 
@@ -1036,4 +1089,5 @@ export class OrderDetailPageComponent {
     return fallback;
   }
 }
+
 
