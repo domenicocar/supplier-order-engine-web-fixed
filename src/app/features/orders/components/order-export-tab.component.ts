@@ -298,33 +298,44 @@ import { formatPrice } from './order-detail-view.utils';
               </p>
             </div>
 
-            <ul class="mt-4 grid gap-3">
+            <div class="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+              <div
+                class="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-4 border-b border-slate-200 bg-white px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400"
+              >
+                <span>Prodotto</span>
+                <span>Cartoni</span>
+                <span>Pezzi</span>
+              </div>
+              <ul class="max-h-[420px] overflow-y-auto">
               @for (item of missingRows(); track item.ean) {
                 <li
-                  class="rounded-2xl border border-amber-200 bg-[rgba(37,99,235,0.04)] px-4 py-4"
+                  class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-start gap-4 border-b border-slate-200 px-4 py-3 last:border-b-0"
                 >
-                  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p class="font-semibold text-slate-950">{{ item.description }}</p>
-                      <p class="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
-                        {{ item.ean }}
-                      </p>
-                    </div>
-                    <div class="text-left sm:text-right">
-                      <p class="text-sm font-medium text-slate-950">
-                        {{ item.quantity ?? '-' }} cartoni
-                      </p>
-                      <p class="mt-1 text-xs text-slate-500">
-                        {{ item.totalPieces ?? 0 }} pezzi
-                      </p>
-                    </div>
+                  <div class="min-w-0">
+                    <p class="truncate font-semibold text-slate-950">{{ item.description }}</p>
+                    <p class="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
+                      {{ item.ean }}
+                    </p>
+                    <p class="mt-2 text-sm text-amber-900">
+                      {{ item.missingReason || 'Prodotto non trovato nei fornitori caricati.' }}
+                    </p>
                   </div>
-                  <p class="mt-3 text-sm text-amber-900">
-                    {{ item.missingReason || 'Prodotto non trovato nei fornitori caricati.' }}
-                  </p>
+                  <div class="text-right">
+                    <p class="text-sm font-semibold text-slate-950">
+                      {{ item.quantity ?? '-' }}
+                    </p>
+                    <p class="mt-1 text-xs text-slate-500">cartoni</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-sm font-semibold text-slate-950">
+                      {{ item.totalPieces ?? 0 }}
+                    </p>
+                    <p class="mt-1 text-xs text-slate-500">pezzi</p>
+                  </div>
                 </li>
               }
-            </ul>
+              </ul>
+            </div>
           }
         </div>
       } @else {
