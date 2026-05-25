@@ -36,6 +36,7 @@ export class OrdersSessionStore {
       next[index] = {
         ...orders[index],
         ...order,
+        createdAt: order.createdAt || orders[index].createdAt,
         suppliers: order.suppliers ?? orders[index].suppliers,
         supplierComparisonRows:
           order.supplierComparisonRows ?? orders[index].supplierComparisonRows,

@@ -224,7 +224,9 @@ export class OrdersService {
       id,
       status,
       createdAt:
-        this.pickString(orderSource, ['createdAt', 'created_at']) ?? new Date().toISOString(),
+        this.pickString(orderSource, ['createdAt', 'created_at']) ??
+        this.pickString(source, ['createdAt', 'created_at']) ??
+        '',
       items: this.normalizeItems(this.pickValue(orderSource, ['items'])),
       reviewItems: this.normalizeReviewItems(this.pickValue(orderSource, ['reviewItems'])),
       importPdfStatus: this.pickPdfImportStatus(
