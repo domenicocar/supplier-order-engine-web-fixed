@@ -59,17 +59,65 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
   ],
   template: `
     @if (orderLoading()) {
-      <section class="surface-panel flex flex-col gap-4 p-8">
-        <a
-          routerLink="/app/orders"
-          class="app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
-        >
-          &larr; Torna agli ordini
-        </a>
-        <h1 class="font-heading text-3xl font-semibold text-[var(--app-text)]">Caricamento ordine...</h1>
-        <p class="max-w-2xl text-sm leading-7 text-[var(--app-text-muted)]">
-          Sto recuperando il dettaglio ordine e preparando i dati dei tab.
-        </p>
+      <section class="flex flex-col gap-6">
+        <div class="order-header surface-panel">
+          <div class="order-header__main">
+            <a
+              routerLink="/app/orders"
+              class="order-header__back app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
+            >
+              <i class="pi pi-arrow-left text-xs" aria-hidden="true"></i>
+              <span>Torna agli ordini</span>
+            </a>
+
+            <div class="flex flex-col gap-3">
+              <div class="h-10 w-56 animate-pulse rounded-2xl bg-slate-200/80"></div>
+              <div class="h-5 w-72 animate-pulse rounded-full bg-slate-100"></div>
+            </div>
+          </div>
+
+          <div class="order-header__metrics">
+            @for (placeholder of [1, 2, 3]; track placeholder) {
+              <div class="order-metric-pill">
+                <div class="h-5 w-5 animate-pulse rounded-full bg-slate-200/80"></div>
+                <div class="h-5 w-12 animate-pulse rounded-full bg-slate-200/80"></div>
+                <div class="h-4 w-20 animate-pulse rounded-full bg-slate-100"></div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <p-tabs [value]="'import'" [lazy]="true" class="flex flex-col gap-6">
+          <p-tablist>
+            <p-tab value="import">Import</p-tab>
+            <p-tab value="products" [disabled]="true">Tabella prodotti</p-tab>
+            <p-tab value="comparison" [disabled]="true">Confronto fornitori</p-tab>
+            <p-tab value="export" [disabled]="true">Riepilogo e Export</p-tab>
+          </p-tablist>
+
+          <p-tabpanels>
+            <p-tabpanel value="import">
+              <section class="surface-panel p-8">
+                <div class="mb-6">
+                  <div class="h-4 w-28 animate-pulse rounded-full bg-slate-100"></div>
+                  <div class="mt-4 h-8 w-72 animate-pulse rounded-2xl bg-slate-200/80"></div>
+                  <div class="mt-3 h-4 w-full max-w-3xl animate-pulse rounded-full bg-slate-100"></div>
+                  <div class="mt-2 h-4 w-4/5 max-w-2xl animate-pulse rounded-full bg-slate-100"></div>
+                </div>
+
+                <div class="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+                  <div class="flex flex-col items-center text-center">
+                    <div class="mb-5 h-20 w-20 animate-pulse rounded-full bg-slate-100"></div>
+                    <div class="h-7 w-40 animate-pulse rounded-2xl bg-slate-200/80"></div>
+                    <div class="mt-3 h-4 w-full max-w-md animate-pulse rounded-full bg-slate-100"></div>
+                    <div class="mt-2 h-4 w-3/4 max-w-sm animate-pulse rounded-full bg-slate-100"></div>
+                    <div class="mt-6 h-10 w-56 animate-pulse rounded-full bg-slate-100"></div>
+                  </div>
+                </div>
+              </section>
+            </p-tabpanel>
+          </p-tabpanels>
+        </p-tabs>
       </section>
     } @else {
       @if (order(); as currentOrder) {
@@ -80,7 +128,8 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                 routerLink="/app/orders"
                 class="order-header__back app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
               >
-                &larr; Torna agli ordini
+                <i class="pi pi-arrow-left text-xs" aria-hidden="true"></i>
+                <span>Torna agli ordini</span>
               </a>
 
               <div class="order-header__title-row">
@@ -134,9 +183,9 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
           >
             <p-tablist>
               <p-tab value="import">Import</p-tab>
-              <p-tab value="products">Tabella prodotti</p-tab>
-              <p-tab value="comparison">Confronto fornitori</p-tab>
-              <p-tab value="export">Riepilogo e Export</p-tab>
+              <p-tab value="products" [disabled]="orderLoading()">Tabella prodotti</p-tab>
+              <p-tab value="comparison" [disabled]="orderLoading()">Confronto fornitori</p-tab>
+              <p-tab value="export" [disabled]="orderLoading()">Riepilogo e Export</p-tab>
             </p-tablist>
 
             <p-tabpanels>
@@ -199,7 +248,8 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
             routerLink="/app/orders"
             class="app-link-muted inline-flex items-center gap-2 text-sm font-medium no-underline transition"
           >
-            &larr; Torna agli ordini
+            <i class="pi pi-arrow-left text-xs" aria-hidden="true"></i>
+            <span>Torna agli ordini</span>
           </a>
           <h1 class="font-heading text-3xl font-semibold text-[var(--app-text)]">Ordine non trovato</h1>
           <p class="max-w-2xl text-sm leading-7 text-[var(--app-text-muted)]">
@@ -643,6 +693,10 @@ export class OrderDetailPageComponent {
   }
 
   onActiveTabChange(value: string | number): void {
+    if (this.orderLoading() && value !== 'import') {
+      return;
+    }
+
     if (
       value === 'import' ||
       value === 'products' ||

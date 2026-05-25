@@ -25,7 +25,6 @@ import {
   UploadCardState,
   UploadCardStatus,
 } from './order-detail-view.models';
-import { formatRate, severityTone } from './order-detail-view.utils';
 
 type SupplierMappingField =
   | 'eanColumnIndex'
@@ -51,7 +50,7 @@ type SupplierMappingField =
           </p>
         </div>
 
-        <div class="grid gap-6 lg:grid-cols-2">
+        <div>
           <label
             [for]="orderFileInputId"
             [class]="uploadCardClass(orderFileCardState().status)"
@@ -108,57 +107,6 @@ type SupplierMappingField =
               </p>
             </div>
           </label>
-
-          <div
-            class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
-          >
-            <div class="flex items-center justify-between gap-4">
-              <h3 class="text-base font-semibold text-slate-950">
-                Esito ultima importazione
-              </h3>
-              @if (order().importResult) {
-                <span class="text-sm text-slate-500">
-                  {{ order().importResult?.importedItems?.length ?? 0 }} righe
-                </span>
-              }
-            </div>
-
-            @if (order().importResult; as importResult) {
-              <div class="mt-6 grid gap-4 sm:grid-cols-2">
-                <div class="stat-tile">
-                  <p class="stat-label">Imported items</p>
-                  <p class="stat-value">
-                    {{ importResult.importedItems.length }}
-                  </p>
-                </div>
-                <div class="stat-tile">
-                  <p class="stat-label">Rejected items</p>
-                  <p class="stat-value">
-                    {{ importResult.rejectedItems.length }}
-                  </p>
-                </div>
-                <div class="stat-tile">
-                  <p class="stat-label">Import success rate</p>
-                  <p class="stat-value">
-                    {{ formatRate(importResult.importSuccessRate) }}
-                  </p>
-                </div>
-                <div class="stat-tile">
-                  <p class="stat-label">First imported items</p>
-                  <p class="stat-value">
-                    {{ importResult.firstImportedItems.length }}
-                  </p>
-                </div>
-              </div>
-            } @else {
-              <p
-                class="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-500"
-              >
-                Nessun file ordine importato per questo ordine nella sessione
-                corrente.
-              </p>
-            }
-          </div>
         </div>
 
         @if (orderImportPreviewState(); as importState) {
@@ -775,8 +723,6 @@ export class OrderImportTabComponent {
     code?: string | null;
   }>();
 
-  readonly formatRate = formatRate;
-  readonly severityTone = severityTone;
   readonly orderFileInputId = 'order-import-upload-input';
 
   readonly orderDraftMapping = signal<OrderImportColumnMapping | null>(null);
