@@ -7,7 +7,7 @@ export const appRoutes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    redirectTo: 'landing'
+    redirectTo: 'login'
   },
   {
     path: 'login',
@@ -18,10 +18,8 @@ export const appRoutes: Routes = [
   },
   {
     path: 'landing',
-    loadComponent: () =>
-      import('./features/landing/pages/landing-page.component').then(
-        (m) => m.LandingPageComponent
-      )
+    redirectTo: 'login',
+    pathMatch: 'full'
   },
   {
     path: 'app',
@@ -51,6 +49,6 @@ export const appRoutes: Routes = [
   },
   {
     path: '**',
-    redirectTo: 'landing'
+    redirectTo: 'login'
   }
 ];
