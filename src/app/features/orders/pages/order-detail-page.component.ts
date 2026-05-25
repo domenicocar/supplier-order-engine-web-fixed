@@ -99,19 +99,19 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
 
             <div class="order-header__metrics">
               <div class="order-metric-pill">
-                <span class="order-metric-pill__icon">📦</span>
+                <i class="pi pi-box order-metric-pill__icon" aria-hidden="true"></i>
                 <span class="order-metric-pill__value">{{ currentOrder.items.length }}</span>
                 <span class="order-metric-pill__label">prodotti</span>
               </div>
               <div class="order-metric-pill">
-                <span class="order-metric-pill__icon">🏪</span>
+                <i class="pi pi-shop order-metric-pill__icon" aria-hidden="true"></i>
                 <span class="order-metric-pill__value">{{ suppliers().length }}</span>
                 <span class="order-metric-pill__label">fornitori</span>
               </div>
               @if (exportOverview(); as overview) {
                 @if (overview.estimatedTotal !== null) {
                   <div class="order-metric-pill order-metric-pill--accent">
-                    <span class="order-metric-pill__icon">💰</span>
+                    <i class="pi pi-wallet order-metric-pill__icon" aria-hidden="true"></i>
                     <span class="order-metric-pill__value">{{ formatCompactPrice(overview.estimatedTotal) }}</span>
                     <span class="order-metric-pill__label">totale stimato</span>
                   </div>
@@ -289,10 +289,10 @@ export class OrderDetailPageComponent {
     const date = this.parseDate(createdAt);
 
     if (!date) {
-      return `${productsCount} prodotti • ${suppliersCount} fornitori`;
+      return '';
     }
 
-    return `${this.capitalize(this.italianMetaDateFormatter.format(date))} • ${this.italianTimeFormatter.format(date)} • ${productsCount} prodotti • ${suppliersCount} fornitori`;
+    return `${this.capitalize(this.italianMetaDateFormatter.format(date))} � ${this.italianTimeFormatter.format(date)}`;
   }
 
   formatCompactPrice(value: number): string {
@@ -1036,3 +1036,4 @@ export class OrderDetailPageComponent {
     return fallback;
   }
 }
+
