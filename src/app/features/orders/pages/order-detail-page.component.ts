@@ -39,6 +39,7 @@ import {
 } from '../components/order-detail-view.models';
 import {
   calculateRoundedLineTotal,
+  resolveSelectedSupplierComparisonOffer,
   roundToCents,
   sumRoundedCurrency
 } from '../components/order-detail-view.utils';
@@ -829,12 +830,8 @@ export class OrderDetailPageComponent {
 
     return currentOrder.supplierComparisonRows
       .map((row) => {
-        const defaultOption = row.selectedOffer ?? row.bestOffer ?? row.availableSuppliers[0] ?? null;
         const manualSelection = selections[row.ean];
-        const selectedOption =
-          row.availableSuppliers.find(
-            (option) => option.supplierId === manualSelection?.selectedSupplierId
-          ) ?? defaultOption;
+        const selectedOption = resolveSelectedSupplierComparisonOffer(row, manualSelection);
 
         return {
           ean: row.ean,

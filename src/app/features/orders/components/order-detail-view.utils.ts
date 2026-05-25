@@ -1,4 +1,5 @@
-import { ReviewItem, SupplierComparisonOffer } from '../../../models/order.models';
+import { ReviewItem, SupplierComparisonOffer, SupplierComparisonRow } from '../../../models/order.models';
+import { SupplierComparisonSelection } from './order-detail-view.models';
 
 export function reviewReason(item: ReviewItem): string {
   return item.reason || item.possibleReason || '-';
@@ -62,6 +63,26 @@ export function sumRoundedCurrency(values: Array<number | null | undefined>): nu
   return roundToCents(
     values.reduce<number>((sum, value) => sum + (value ?? 0), 0)
   );
+}
+
+export function resolveSelectedSupplierComparisonOffer(
+  row: SupplierComparisonRow,
+  manualSelection?: SupplierComparisonSelection
+): SupplierComparisonOffer | null {
+  const selectedSupplierId =
+    manualSelection?.selectedSupplierId || row.selectedOffer?.supplierId || row.bestOffer?.supplierId;
+
+  if (selectedSupplierId) {
+    return (
+      row.availableSuppliers.find((option) => option.supplierId === selectedSupplierId) ??
+      row.selectedOffer ??
+      row.bestOffer ??
+      row.availableSuppliers[0] ??
+      null
+    );
+  }
+
+  return row.selectedOffer ?? row.bestOffer ?? row.availableSuppliers[0] ?? null;
 }
 
 export function formatSupplierOption(option: SupplierComparisonOffer): string {
