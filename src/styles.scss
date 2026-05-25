@@ -8,6 +8,14 @@
 
 :root {
   color-scheme: light;
+  --brand-primary: #2563eb;
+  --brand-secondary: #64748b;
+  --brand-tertiary: #10b981;
+  --brand-neutral: #757681;
+  --brand-surface: #f6f7ff;
+  --brand-primary-soft: rgba(37, 99, 235, 0.08);
+  --brand-secondary-soft: rgba(100, 116, 139, 0.12);
+  --brand-tertiary-soft: rgba(16, 185, 129, 0.12);
 }
 
 html {
@@ -69,6 +77,85 @@ a {
 
   .btn-secondary {
     @apply inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50;
+  }
+
+  .panel-title {
+    @apply text-base font-semibold text-slate-950;
+  }
+
+  .panel-copy {
+    @apply text-sm text-slate-500;
+  }
+
+  .summary-hero {
+    @apply grid gap-5 rounded-[28px] border border-slate-200 bg-[var(--brand-surface)] p-6;
+  }
+
+  .summary-hero__primary {
+    @apply flex flex-col justify-center;
+  }
+
+  .summary-hero__eyebrow {
+    color: var(--brand-secondary);
+    @apply text-[11px] font-semibold uppercase tracking-[0.16em];
+  }
+
+  .summary-hero__primary-row {
+    @apply mt-3 flex flex-wrap items-end gap-2;
+  }
+
+  .summary-hero__amount {
+    color: var(--brand-primary);
+    @apply font-heading text-3xl font-semibold tracking-tight;
+  }
+
+  .summary-hero__caption {
+    color: var(--brand-secondary);
+    @apply pb-1 text-sm font-medium;
+  }
+
+  .summary-hero__stats {
+    @apply grid grid-cols-3 gap-4;
+  }
+
+  .summary-hero__stat {
+    @apply text-center;
+  }
+
+  .summary-hero__stat-value {
+    @apply font-heading text-3xl font-semibold leading-none text-slate-950;
+  }
+
+  .summary-hero__stat-label {
+    color: var(--brand-secondary);
+    @apply mt-2 text-sm font-medium;
+  }
+
+  .summary-hero__highlight {
+    background: var(--brand-tertiary-soft);
+    border-color: rgba(16, 185, 129, 0.5);
+    color: #166534;
+    @apply flex min-h-[112px] flex-col justify-center rounded-2xl border px-5 py-4;
+  }
+
+  .summary-hero__highlight-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.16em];
+  }
+
+  .summary-hero__highlight-value {
+    @apply mt-2 font-heading text-3xl font-semibold tracking-tight;
+  }
+
+  .summary-hero__divider {
+    background: rgba(100, 116, 139, 0.18);
+    @apply hidden w-px self-stretch lg:block;
+  }
+}
+
+@media (min-width: 1024px) {
+  .summary-hero {
+    grid-template-columns: minmax(0, 1.2fr) 1px minmax(0, 1.4fr) 1px minmax(220px, 0.9fr);
+    align-items: stretch;
   }
 }
 
