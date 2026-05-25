@@ -98,6 +98,8 @@ export interface SupplierComparisonOffer {
   supplierName: string;
   packageSize: number;
   price: number | null;
+  netPrice: number | null;
+  grossPrice: number | null;
 }
 
 export interface SupplierComparisonRow {

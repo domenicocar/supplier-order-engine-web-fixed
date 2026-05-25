@@ -621,6 +621,8 @@ export class OrdersService {
       supplierName,
       packageSize:
         this.pickNumber(value, ['packageSize', 'package_size', 'packSize', 'cf', 'conf']) ?? 1,
+      netPrice: this.pickNumber(value, ['netPrice', 'net_price']),
+      grossPrice: this.pickNumber(value, ['grossPrice', 'gross_price']),
       price: this.pickNumber(value, [
         'price',
         'prezzo',

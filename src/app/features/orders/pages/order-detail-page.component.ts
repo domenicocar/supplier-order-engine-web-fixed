@@ -37,6 +37,11 @@ import {
   SupplierUploadPreviewState,
   UploadCardState
 } from '../components/order-detail-view.models';
+import {
+  calculateRoundedLineTotal,
+  roundToCents,
+  sumRoundedCurrency
+} from '../components/order-detail-view.utils';
 import { OrderImportTabComponent } from '../components/order-import-tab.component';
 import { OrderProductsTabComponent } from '../components/order-products-tab.component';
 import { SupplierComparisonTabComponent } from '../components/supplier-comparison-tab.component';
@@ -516,7 +521,7 @@ export class OrderDetailPageComponent {
       [payload.ean]: {
         selectedSupplierId: option.supplierId,
         selectedSupplierName: option.supplierName,
-        selectedPrice: option.price,
+        selectedPrice: option.netPrice ?? option.price,
         selectedPackageSize: option.packageSize
       }
     }));
@@ -666,10 +671,7 @@ export class OrderDetailPageComponent {
         selectedPrice !== null ? selectedPrice * packageSize : null;
       const totalPieces =
         normalizedQuantity !== null ? normalizedQuantity * packageSize : null;
-      const lineTotal =
-        normalizedQuantity !== null && selectedPrice !== null
-          ? normalizedQuantity * selectedPrice * packageSize
-          : null;
+      const lineTotal = calculateRoundedLineTotal(selectedPrice, totalPieces);
 
       return {
         ean: item.ean,
@@ -715,7 +717,7 @@ export class OrderDetailPageComponent {
       current.items.push(row);
 
       if (row.lineTotal !== null && current.subtotal !== null) {
-        current.subtotal += row.lineTotal;
+        current.subtotal = roundToCents(current.subtotal + row.lineTotal);
       }
 
       grouped.set(row.supplierId, current);
@@ -732,7 +734,7 @@ export class OrderDetailPageComponent {
     }
 
     return {
-      estimatedTotal: rows.reduce((sum, row) => sum + (row.lineTotal ?? 0), 0),
+      estimatedTotal: sumRoundedCurrency(rows.map((row) => row.lineTotal)),
       productsCount: rows.length,
       suppliersCount: new Set(rows.map((row) => row.supplierId).filter(Boolean)).size,
       totalQuantity: rows.reduce((sum, row) => sum + (row.totalPieces ?? 0), 0),
@@ -841,7 +843,7 @@ export class OrderDetailPageComponent {
           bestOffer: row.bestOffer,
           selectedSupplierId: selectedOption?.supplierId ?? '',
           selectedSupplierName: selectedOption?.supplierName ?? '',
-          selectedPrice: selectedOption?.price ?? null,
+          selectedPrice: selectedOption?.netPrice ?? selectedOption?.price ?? null,
           selectedPackageSize: selectedOption?.packageSize ?? 1,
           availableSuppliers: row.availableSuppliers
         };

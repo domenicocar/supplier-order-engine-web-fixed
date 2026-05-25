@@ -38,11 +38,38 @@ export function formatPrice(value: number | null): string {
   return `EUR ${value.toFixed(2).replace('.', ',')}`;
 }
 
+export function roundToCents(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+export function calculateRoundedLineTotal(
+  unitNetPrice: number | null,
+  totalPieces: number | null
+): number | null {
+  if (
+    unitNetPrice === null ||
+    totalPieces === null ||
+    !Number.isFinite(unitNetPrice) ||
+    !Number.isFinite(totalPieces)
+  ) {
+    return null;
+  }
+
+  return roundToCents(unitNetPrice * totalPieces);
+}
+
+export function sumRoundedCurrency(values: Array<number | null | undefined>): number {
+  return roundToCents(
+    values.reduce<number>((sum, value) => sum + (value ?? 0), 0)
+  );
+}
+
 export function formatSupplierOption(option: SupplierComparisonOffer): string {
   const packageSize = option.packageSize > 0 ? option.packageSize : 1;
-  const packPrice = option.price === null ? null : option.price * packageSize;
+  const unitPrice = option.netPrice ?? option.price;
+  const packPrice = unitPrice === null ? null : unitPrice * packageSize;
 
-  return `${option.supplierName}: ${formatPrice(option.price)} cad. · conf. ${packageSize} · ${formatPrice(packPrice)} a confezione`;
+  return `${option.supplierName}: ${formatPrice(unitPrice)} cad. · conf. ${packageSize} · ${formatPrice(packPrice)} a confezione`;
 }
 
 export function supplierAvailabilityLabel(count: number): string {
