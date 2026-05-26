@@ -2,12 +2,16 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 
 import {
+  CloseOrderResponse,
   CreateOrderResponse,
+  DeleteOrderResponse,
   ExportGeneratedFile,
   ExportOrderResponse,
   ExportedFile,
   GetOrderResponse,
   ImportOrderFileResponse,
+  OrderClosure,
+  OrderClosureLine,
   OrderFilePreviewResult,
   OrderImportColumnMapping,
   ImportOrderResponse,
@@ -59,6 +63,18 @@ export class OrdersService {
       map((payload) => ({
         order: this.normalizeSessionOrder(payload)
       }))
+    );
+  }
+
+  closeOrder(orderId: string): Observable<CloseOrderResponse> {
+    return this.api.post<unknown>(`/orders/${orderId}/close`, {}).pipe(
+      map((payload) => this.normalizeCloseOrderResponse(payload))
+    );
+  }
+
+  deleteOrder(orderId: string): Observable<DeleteOrderResponse> {
+    return this.api.delete<unknown>(`/orders/${orderId}`).pipe(
+      map((payload) => this.normalizeDeleteOrderResponse(payload))
     );
   }
 
@@ -219,15 +235,26 @@ export class OrdersService {
   private normalizeSessionOrder(payload: unknown): SessionOrder {
     const source = this.unwrap(payload);
     const orderSource = this.unwrap(this.pickValue(source, ['order']) ?? source);
+    const notesSource = this.parseRecord(
+      this.pickValue(orderSource, ['notes']) ?? this.pickValue(source, ['notes'])
+    );
     const id = this.pickString(orderSource, ['id', 'orderId']) ?? `session-${Date.now()}`;
     const status =
       this.pickString(orderSource, ['status']) ??
       this.pickString(source, ['status']) ??
       'CREATED';
-    const normalizedItems = this.normalizeItems(this.pickValue(orderSource, ['items']));
-    const importedItemDetails = this.normalizeItems(
-      this.pickValue(orderSource, ['importedItemDetails', 'imported_item_details'])
+    const normalizedItems = this.normalizeItems(
+      this.pickValue(orderSource, ['items']) ?? this.pickValue(notesSource, ['orderItems', 'items'])
     );
+    const importedItemDetails = this.normalizeItems(
+      this.pickValue(orderSource, ['importedItemDetails', 'imported_item_details']) ??
+        this.pickValue(notesSource, ['importedItemDetails', 'imported_item_details'])
+    );
+    const mergedItems = this.mergeOrderItemsWithImportedDetails(normalizedItems, importedItemDetails);
+    const productsCount =
+      this.pickNumber(orderSource, ['productsCount', 'products_count']) ??
+      this.pickNumber(source, ['productsCount', 'products_count']) ??
+      (mergedItems.length > 0 ? mergedItems.length : null);
 
     return {
       id,
@@ -236,7 +263,40 @@ export class OrdersService {
         this.pickString(orderSource, ['createdAt', 'created_at']) ??
         this.pickString(source, ['createdAt', 'created_at']) ??
         '',
-      items: this.mergeOrderItemsWithImportedDetails(normalizedItems, importedItemDetails),
+      estimatedTotal:
+        this.pickNumber(orderSource, ['estimatedTotal', 'estimated_total']) ??
+        this.pickNumber(source, ['estimatedTotal', 'estimated_total']),
+      productsCount,
+      suppliersCount:
+        this.pickNumber(orderSource, ['suppliersCount', 'suppliers_count']) ??
+        this.pickNumber(source, ['suppliersCount', 'suppliers_count']),
+      totalQuantity:
+        this.pickNumber(orderSource, ['totalQuantity', 'total_quantity']) ??
+        this.pickNumber(source, ['totalQuantity', 'total_quantity']),
+      missingItemsCount:
+        this.pickNumber(orderSource, ['missingItemsCount', 'missing_items_count']) ??
+        this.pickNumber(source, ['missingItemsCount', 'missing_items_count']),
+      assignedItemsCount:
+        this.pickNumber(orderSource, ['assignedItemsCount', 'assigned_items_count']) ??
+        this.pickNumber(source, ['assignedItemsCount', 'assigned_items_count']),
+      missingPricesCount:
+        this.pickNumber(orderSource, ['missingPricesCount', 'missing_prices_count']) ??
+        this.pickNumber(source, ['missingPricesCount', 'missing_prices_count']),
+      missingQuantitiesCount:
+        this.pickNumber(orderSource, ['missingQuantitiesCount', 'missing_quantities_count']) ??
+        this.pickNumber(source, ['missingQuantitiesCount', 'missing_quantities_count']),
+      currency:
+        this.pickString(orderSource, ['currency']) ??
+        this.pickString(source, ['currency']) ??
+        'EUR',
+      totalsCalculatedAt:
+        this.pickString(orderSource, ['totalsCalculatedAt', 'totals_calculated_at']) ??
+        this.pickString(source, ['totalsCalculatedAt', 'totals_calculated_at']) ??
+        null,
+      closure: this.normalizeOrderClosure(
+        this.pickValue(orderSource, ['closure']) ?? this.pickValue(source, ['closure'])
+      ),
+      items: mergedItems,
       reviewItems: this.normalizeReviewItems(this.pickValue(orderSource, ['reviewItems'])),
       importPdfStatus: this.pickPdfImportStatus(
         orderSource,
@@ -445,6 +505,31 @@ export class OrdersService {
     };
   }
 
+  private normalizeCloseOrderResponse(payload: unknown): CloseOrderResponse {
+    const source = this.unwrap(payload);
+
+    return {
+      orderId: this.pickString(source, ['orderId', 'order_id', 'id']) ?? '',
+      status: 'closed',
+      cleanupWarnings: this.normalizeStringArray(
+        this.pickValue(source, ['cleanupWarnings', 'cleanup_warnings'])
+      ),
+      closure: this.normalizeOrderClosure(this.pickValue(source, ['closure']))
+    };
+  }
+
+  private normalizeDeleteOrderResponse(payload: unknown): DeleteOrderResponse {
+    const source = this.unwrap(payload);
+
+    return {
+      orderId: this.pickString(source, ['orderId', 'order_id', 'id']) ?? '',
+      status: 'deleted',
+      cleanupWarnings: this.normalizeStringArray(
+        this.pickValue(source, ['cleanupWarnings', 'cleanup_warnings'])
+      )
+    };
+  }
+
   private normalizeSupplierComparisonResponse(payload: unknown): SupplierComparisonResponse {
     if (Array.isArray(payload)) {
       return {
@@ -459,6 +544,64 @@ export class OrdersService {
         this.pickValue(source, ['rows', 'items', 'comparisons', 'supplierComparisonRows']) ?? source
       )
     };
+  }
+
+  private normalizeOrderClosure(value: unknown): OrderClosure | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+
+    const closureId = this.pickString(value, ['id', 'closureId', 'closure_id']);
+
+    if (!closureId) {
+      return null;
+    }
+
+    return {
+      id: closureId,
+      currency: this.pickString(value, ['currency']) ?? null,
+      grandTotalNet: this.pickNumber(value, ['grandTotalNet', 'grand_total_net']),
+      grandTotalGross: this.pickNumber(value, ['grandTotalGross', 'grand_total_gross']),
+      productsCount: this.pickNumber(value, ['productsCount', 'products_count']),
+      suppliersCount: this.pickNumber(value, ['suppliersCount', 'suppliers_count']),
+      totalQuantity: this.pickNumber(value, ['totalQuantity', 'total_quantity']),
+      closedAt: this.pickString(value, ['closedAt', 'closed_at']) ?? null,
+      lines: this.normalizeOrderClosureLines(this.pickValue(value, ['lines']))
+    };
+  }
+
+  private normalizeOrderClosureLines(value: unknown): OrderClosureLine[] {
+    return this.asArray(value).flatMap((entry, index): OrderClosureLine[] => {
+      if (!this.isRecord(entry)) {
+        return [];
+      }
+
+      return [
+        {
+          ean: this.pickString(entry, ['ean', 'EAN', 'barcode', 'code']) ?? `line-${index + 1}`,
+          description:
+            this.pickString(entry, ['description', 'descrizione', 'productName', 'name']) ??
+            undefined,
+          quantity: this.pickNumber(entry, ['quantity', 'qty', 'orderedQuantity']),
+          supplierId: this.pickString(entry, ['supplierId', 'supplier_id']),
+          supplierName: this.pickString(entry, ['supplierName', 'supplier_name', 'supplier']),
+          unitNetPrice: this.pickNumber(entry, [
+            'unitNetPrice',
+            'unit_net_price',
+            'netPrice',
+            'net_price'
+          ]),
+          unitGrossPrice: this.pickNumber(entry, [
+            'unitGrossPrice',
+            'unit_gross_price',
+            'grossPrice',
+            'gross_price'
+          ]),
+          lineTotalNet: this.pickNumber(entry, ['lineTotalNet', 'line_total_net']),
+          lineTotalGross: this.pickNumber(entry, ['lineTotalGross', 'line_total_gross'])
+        }
+      ];
+    });
   }
 
   private normalizeItems(value: unknown): OrderItem[] {
@@ -946,6 +1089,23 @@ export class OrdersService {
         return String(entry);
       })
       .filter((entry) => entry.trim().length > 0);
+  }
+
+  private parseRecord(value: unknown): Record<string, unknown> {
+    if (this.isRecord(value)) {
+      return value;
+    }
+
+    if (typeof value !== 'string' || value.trim().length === 0) {
+      return {};
+    }
+
+    try {
+      const parsed = JSON.parse(value);
+      return this.isRecord(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
   }
 
   private unwrap(value: unknown): Record<string, unknown> {

@@ -93,6 +93,43 @@ export interface OrderExportResult {
   erroriExport: string[];
 }
 
+export interface OrderClosureLine {
+  ean: string;
+  description?: string;
+  quantity: number | null;
+  supplierId?: string;
+  supplierName?: string;
+  unitNetPrice?: number | null;
+  unitGrossPrice?: number | null;
+  lineTotalNet?: number | null;
+  lineTotalGross?: number | null;
+}
+
+export interface OrderClosure {
+  id: string;
+  currency: string | null;
+  grandTotalNet: number | null;
+  grandTotalGross: number | null;
+  productsCount: number | null;
+  suppliersCount: number | null;
+  totalQuantity: number | null;
+  closedAt: string | null;
+  lines: OrderClosureLine[];
+}
+
+export interface CloseOrderResponse {
+  orderId: string;
+  status: 'closed';
+  cleanupWarnings: string[];
+  closure: OrderClosure | null;
+}
+
+export interface DeleteOrderResponse {
+  orderId: string;
+  status: 'deleted';
+  cleanupWarnings: string[];
+}
+
 export interface SupplierComparisonOffer {
   supplierId: string;
   supplierName: string;
@@ -131,9 +168,21 @@ export interface SupplierUploadProduct {
 }
 
 export interface SessionOrder {
+  [x: string]: any;
   id: string;
   status: string;
   createdAt: string;
+  estimatedTotal?: number | null;
+  productsCount?: number | null;
+  suppliersCount?: number | null;
+  totalQuantity?: number | null;
+  missingItemsCount?: number | null;
+  assignedItemsCount?: number | null;
+  missingPricesCount?: number | null;
+  missingQuantitiesCount?: number | null;
+  currency?: string | null;
+  totalsCalculatedAt?: string | null;
+  closure?: OrderClosure | null;
   items: OrderItem[];
   reviewItems: ReviewItem[];
   importPdfStatus?: PdfImportJobStatus;

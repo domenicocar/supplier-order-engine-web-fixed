@@ -11,6 +11,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription, firstValueFrom, map, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
+import { DialogModule } from 'primeng/dialog';
 import { TabsModule } from 'primeng/tabs';
 
 import {
@@ -54,6 +55,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
     OrderImportTabComponent,
     RouterLink,
     SupplierComparisonTabComponent,
+    DialogModule,
     TabsModule
   ],
   template: `
@@ -173,6 +175,18 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
             </div>
           }
 
+          @if (pageNotice()) {
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
+              {{ pageNotice() }}
+            </div>
+          }
+
+          @if (isReadOnlyOrder()) {
+            <div class="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-4 text-sm text-[var(--app-text)]">
+              Questo ordine e stato chiuso definitivamente ed e ora disponibile solo in modalita storica.
+            </div>
+          }
+
           <p-tabs
             [value]="activeTab()"
             (valueChange)="onActiveTabChange($event)"
@@ -187,55 +201,113 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
 
             <p-tabpanels>
               <p-tabpanel value="import">
-                <app-order-import-tab
-                  [order]="currentOrder"
-                  [suppliers]="suppliers()"
-                  [orderImportPreviewState]="orderImportPreviewState()"
-                  [orderFileUploading]="orderFileUploading()"
-                  [orderFileImporting]="orderFileImporting()"
-                  [orderFileMessage]="orderFileMessage()"
-                  [supplierUploadState]="supplierUploadState()"
-                  [pendingSupplierDraftState]="pendingSupplierDraftState()"
-                  [supplierPreviewState]="supplierPreviewState()"
-                  [supplierCreating]="supplierCreating()"
-                  [supplierComparisonLoading]="supplierComparisonLoading()"
-                  [hasSupplierUploads]="hasSupplierUploads()"
-                  (orderFileSelected)="onOrderFileSelected($event)"
-                  (orderImportConfirmed)="onOrderImportConfirmed($event)"
-                  (supplierDraftFileSelected)="onSupplierDraftFileSelected($event)"
-                  (supplierFileSelected)="onSupplierFileSelected($event)"
-                  (supplierMappingConfirmed)="onSupplierMappingConfirmed($event)"
-                  (supplierComparisonRequested)="loadSupplierComparison()"
-                />
+                <div
+                  [class.pointer-events-none]="isReadOnlyOrder()"
+                  [class.opacity-60]="isReadOnlyOrder()"
+                >
+                  <app-order-import-tab
+                    [order]="currentOrder"
+                    [suppliers]="suppliers()"
+                    [orderImportPreviewState]="orderImportPreviewState()"
+                    [orderFileUploading]="orderFileUploading()"
+                    [orderFileImporting]="orderFileImporting()"
+                    [orderFileMessage]="orderFileMessage()"
+                    [supplierUploadState]="supplierUploadState()"
+                    [pendingSupplierDraftState]="pendingSupplierDraftState()"
+                    [supplierPreviewState]="supplierPreviewState()"
+                    [supplierCreating]="supplierCreating()"
+                    [supplierComparisonLoading]="supplierComparisonLoading()"
+                    [hasSupplierUploads]="hasSupplierUploads()"
+                    (orderFileSelected)="onOrderFileSelected($event)"
+                    (orderImportConfirmed)="onOrderImportConfirmed($event)"
+                    (supplierDraftFileSelected)="onSupplierDraftFileSelected($event)"
+                    (supplierFileSelected)="onSupplierFileSelected($event)"
+                    (supplierMappingConfirmed)="onSupplierMappingConfirmed($event)"
+                    (supplierComparisonRequested)="loadSupplierComparison()"
+                  />
+                </div>
               </p-tabpanel>
 
               <p-tabpanel value="comparison">
-                <app-supplier-comparison-tab
-                  [rows]="supplierComparisonRows()"
-                  [orderItems]="currentOrder.items"
-                  [loading]="supplierComparisonLoading()"
-                  [requested]="supplierComparisonRequested()"
-                  [error]="supplierComparisonError()"
-                  [hasSupplierUploads]="hasSupplierUploads()"
-                  (loadRequested)="loadSupplierComparison()"
-                  (selectionChanged)="onSupplierComparisonSelectionChange($event)"
-                  (quantityChanged)="onSupplierComparisonQuantityChange($event)"
-                />
+                <div
+                  [class.pointer-events-none]="isReadOnlyOrder()"
+                  [class.opacity-60]="isReadOnlyOrder()"
+                >
+                  <app-supplier-comparison-tab
+                    [rows]="supplierComparisonRows()"
+                    [orderItems]="currentOrder.items"
+                    [loading]="supplierComparisonLoading()"
+                    [requested]="supplierComparisonRequested()"
+                    [error]="supplierComparisonError()"
+                    [hasSupplierUploads]="hasSupplierUploads()"
+                    (loadRequested)="loadSupplierComparison()"
+                    (selectionChanged)="onSupplierComparisonSelectionChange($event)"
+                    (quantityChanged)="onSupplierComparisonQuantityChange($event)"
+                  />
+                </div>
               </p-tabpanel>
 
               <p-tabpanel value="export">
                 <app-order-export-tab
                   [exporting]="exporting()"
+                  [closing]="closing()"
+                  [readOnly]="isReadOnlyOrder()"
                   [overview]="exportOverview()"
                   [supplierSummary]="supplierExportSummary()"
                   [summaryRows]="orderExportSummaryRows()"
                   [missingRows]="missingOrderSummaryRows()"
                   [exportResult]="currentOrder.exportResult"
                   (exportRequested)="generateExport()"
+                  (closeRequested)="closeOrder()"
                 />
               </p-tabpanel>
             </p-tabpanels>
           </p-tabs>
+
+          <p-dialog
+            [visible]="closeDialogVisible()"
+            (visibleChange)="closeDialogVisible.set($event)"
+            [modal]="true"
+            [draggable]="false"
+            [resizable]="false"
+            [dismissableMask]="true"
+            [style]="{ width: 'min(560px, 96vw)' }"
+            header="Chiudi ordine"
+          >
+            <div class="flex flex-col gap-4">
+              <p class="text-sm leading-7 text-[var(--app-text-muted)]">
+                Stai per chiudere definitivamente
+                <span class="font-semibold text-[var(--app-text)]">
+                  {{ orderDisplayLabel(currentOrder.createdAt) }}
+                </span>.
+                Dopo la chiusura l'ordine diventera storico e non sara piu modificabile.
+              </p>
+
+              <div class="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-4 text-sm text-[var(--app-text)]">
+                Verranno salvati snapshot analytics e il backend provera anche a pulire PDF, file supplier e output export non piu necessari.
+              </div>
+
+              <div class="flex justify-end gap-3">
+                <button
+                  pButton
+                  type="button"
+                  class="btn-secondary justify-center !rounded-2xl !px-4 !py-2.5 !text-sm !font-semibold"
+                  (click)="closeDialogVisible.set(false)"
+                >
+                  Annulla
+                </button>
+                <button
+                  pButton
+                  type="button"
+                  class="justify-center !rounded-2xl !bg-emerald-600 !px-4 !py-2.5 !text-sm !font-semibold !text-white"
+                  [disabled]="closing()"
+                  (click)="confirmCloseOrder()"
+                >
+                  {{ closing() ? 'Chiusura in corso...' : 'Conferma chiusura' }}
+                </button>
+              </div>
+            </div>
+          </p-dialog>
         </section>
       } @else {
         <section class="surface-panel flex flex-col gap-4 p-8">
@@ -301,7 +373,10 @@ export class OrderDetailPageComponent {
   readonly orderFileImporting = signal(false);
   readonly orderFileMessage = signal<string | null>(null);
   readonly exporting = signal(false);
+  readonly closing = signal(false);
+  readonly closeDialogVisible = signal(false);
   readonly pageError = signal<string | null>(null);
+  readonly pageNotice = signal<string | null>(null);
   readonly supplierComparisonRequested = signal(false);
   readonly supplierComparisonLoading = signal(false);
   readonly supplierComparisonError = signal<string | null>(null);
@@ -331,6 +406,10 @@ export class OrderDetailPageComponent {
 
     if (normalized === 'draft') {
       return 'Bozza';
+    }
+
+    if (normalized === 'closed') {
+      return 'Chiuso';
     }
 
     if (!normalized) {
@@ -373,6 +452,9 @@ export class OrderDetailPageComponent {
     this.buildSupplierExportSummary(this.orderExportSummaryRows())
   );
   readonly exportOverview = computed(() => this.buildExportOverview(this.orderExportSummaryRows()));
+  readonly isReadOnlyOrder = computed(
+    () => (this.order()?.status ?? '').trim().toLowerCase() === 'closed'
+  );
 
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -427,6 +509,10 @@ export class OrderDetailPageComponent {
   }
 
   onOrderFileSelected(file: File): void {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     void this.previewOrderImportFile(file);
   }
 
@@ -451,6 +537,10 @@ export class OrderDetailPageComponent {
     file: File;
     mapping: OrderImportColumnMapping | null;
   }): Promise<void> {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     const orderId = this.orderId();
 
     if (!orderId) {
@@ -478,6 +568,10 @@ export class OrderDetailPageComponent {
   }
 
   async previewOrderImportFile(file: File): Promise<void> {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     const orderId = this.orderId();
 
     if (!orderId) {
@@ -518,6 +612,10 @@ export class OrderDetailPageComponent {
   }
 
   onSupplierFileSelected(payload: { supplierId: string; file: File }): void {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     void this.previewSupplierFile(payload.supplierId, payload.file);
   }
 
@@ -526,6 +624,10 @@ export class OrderDetailPageComponent {
     name: string;
     file: File;
   }): Promise<void> {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     const orderId = this.orderId();
     const supplierName = payload.name.trim();
 
@@ -584,6 +686,10 @@ export class OrderDetailPageComponent {
     file: File;
     mapping: SupplierColumnMapping | null;
   }): Promise<void> {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     await this.uploadSupplierFile(payload.supplierId, payload.file, {
       mapping: payload.mapping,
       persistMapping: true
@@ -591,6 +697,10 @@ export class OrderDetailPageComponent {
   }
 
   async onSupplierCreateRequested(payload: SupplierCreatePayload): Promise<void> {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     const orderId = this.orderId();
 
     if (!orderId) {
@@ -613,6 +723,10 @@ export class OrderDetailPageComponent {
   }
 
   async previewSupplierFile(supplierId: string, file: File): Promise<void> {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     await this.uploadSupplierFile(supplierId, file, {
       persistMapping: false
     });
@@ -710,6 +824,10 @@ export class OrderDetailPageComponent {
   }
 
   onSupplierComparisonSelectionChange(payload: { ean: string; supplierId: string }): void {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     const row = this.supplierComparisonRows().find((currentRow) => currentRow.ean === payload.ean);
     const option = row?.availableSuppliers.find(
       (currentOption) => currentOption.supplierId === payload.supplierId
@@ -732,6 +850,10 @@ export class OrderDetailPageComponent {
   }
 
   onSupplierComparisonQuantityChange(payload: { ean: string; quantity: number | null }): void {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     this.supplierComparisonQuantities.update((quantities) => ({
       ...quantities,
       [payload.ean]: payload.quantity
@@ -754,6 +876,10 @@ export class OrderDetailPageComponent {
   }
 
   async loadSupplierComparison(): Promise<void> {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     const orderId = this.orderId();
 
     if (!orderId || !this.hasSupplierUploads() || this.supplierComparisonLoading()) {
@@ -773,6 +899,10 @@ export class OrderDetailPageComponent {
   }
 
   async generateExport(): Promise<void> {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     const orderId = this.orderId();
 
     if (!orderId) {
@@ -808,9 +938,70 @@ export class OrderDetailPageComponent {
     }
   }
 
+  async closeOrder(): Promise<void> {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
+    this.closeDialogVisible.set(true);
+  }
+
+  async confirmCloseOrder(): Promise<void> {
+    const orderId = this.orderId();
+
+    if (!orderId) {
+      return;
+    }
+
+    this.closing.set(true);
+    this.pageError.set(null);
+    this.pageNotice.set(null);
+
+    try {
+      const exportItems = this.buildPersistedOrderItemPayload();
+      await firstValueFrom(this.ordersService.syncOrderItems(orderId, exportItems));
+      const response = await firstValueFrom(this.ordersService.closeOrder(orderId));
+      const currentOrder = this.order();
+
+      this.ordersStore.upsertOrder({
+        ...(currentOrder ?? {
+          id: orderId,
+          status: 'closed',
+          createdAt: new Date().toISOString(),
+          items: [],
+          reviewItems: [],
+          supplierUploads: {}
+        }),
+        status: 'closed',
+        estimatedTotal: response.closure?.grandTotalNet ?? currentOrder?.estimatedTotal ?? null,
+        currency: response.closure?.currency ?? currentOrder?.currency ?? 'EUR',
+        productsCount: response.closure?.productsCount ?? currentOrder?.productsCount ?? null,
+        suppliersCount: response.closure?.suppliersCount ?? currentOrder?.suppliersCount ?? null,
+        totalQuantity: response.closure?.totalQuantity ?? currentOrder?.totalQuantity ?? null,
+        totalsCalculatedAt: response.closure?.closedAt ?? currentOrder?.totalsCalculatedAt ?? null,
+        closure: response.closure
+      });
+      this.activeTab.set('export');
+      this.closeDialogVisible.set(false);
+
+      if (response.cleanupWarnings.length > 0) {
+        this.pageNotice.set(
+          `Ordine chiuso. Avvisi pulizia asset: ${response.cleanupWarnings.join(' ')}`
+        );
+      } else {
+        this.pageNotice.set('Ordine chiuso correttamente e disponibile come storico.');
+      }
+    } catch (error: unknown) {
+      this.pageError.set(this.toMessage(error, 'Chiusura ordine non riuscita.'));
+    } finally {
+      this.closing.set(false);
+    }
+  }
+
   private async loadOrder(orderId: string): Promise<void> {
     this.orderLoading.set(true);
     this.pageError.set(null);
+    this.pageNotice.set(null);
     this.markOrderAsFetched(orderId);
 
     try {
@@ -849,6 +1040,10 @@ export class OrderDetailPageComponent {
 
   private shouldAutoLoadSupplierComparison(order: SessionOrder | null | undefined): boolean {
     if (!order) {
+      return false;
+    }
+
+    if ((order.status ?? '').trim().toLowerCase() === 'closed') {
       return false;
     }
 
@@ -1185,6 +1380,10 @@ export class OrderDetailPageComponent {
   }
 
   private async syncDraftItems(): Promise<void> {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
     const orderId = this.orderId();
 
     if (!orderId) {

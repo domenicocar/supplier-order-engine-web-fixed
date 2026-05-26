@@ -35,15 +35,33 @@ import { formatPrice } from './order-detail-view.utils';
           </p>
         </div>
 
-        <button
-          pButton
-          type="button"
-          class="justify-center !rounded-2xl !bg-[var(--brand-primary)] !px-6 !py-3 !text-sm !font-semibold !text-white"
-          [disabled]="exporting()"
-          (click)="exportRequested.emit()"
-        >
-          {{ exporting() ? 'Export in corso...' : 'Esporta ordine' }}
-        </button>
+        <div class="flex flex-wrap gap-3">
+          @if (readOnly()) {
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
+              Ordine storico chiuso
+            </div>
+          } @else {
+            <button
+              pButton
+              type="button"
+              class="justify-center !rounded-2xl !bg-[var(--brand-primary)] !px-6 !py-3 !text-sm !font-semibold !text-white"
+              [disabled]="exporting() || closing()"
+              (click)="exportRequested.emit()"
+            >
+              {{ exporting() ? 'Export in corso...' : 'Esporta ordine' }}
+            </button>
+
+            <button
+              pButton
+              type="button"
+              class="justify-center !rounded-2xl !bg-emerald-600 !px-6 !py-3 !text-sm !font-semibold !text-white"
+              [disabled]="exporting() || closing()"
+              (click)="closeRequested.emit()"
+            >
+              {{ closing() ? 'Chiusura in corso...' : 'Chiudi ordine' }}
+            </button>
+          }
+        </div>
       </div>
 
       @if (overview(); as currentOverview) {
@@ -353,6 +371,8 @@ import { formatPrice } from './order-detail-view.utils';
 })
 export class OrderExportTabComponent {
   readonly exporting = input(false);
+  readonly closing = input(false);
+  readonly readOnly = input(false);
   readonly overview = input<OrderExportOverview | null>(null);
   readonly supplierSummary = input<SupplierExportSummary[]>([]);
   readonly summaryRows = input<OrderExportSummaryRow[]>([]);
@@ -360,6 +380,7 @@ export class OrderExportTabComponent {
   readonly exportResult = input<OrderExportResult | undefined>(undefined);
 
   readonly exportRequested = output<void>();
+  readonly closeRequested = output<void>();
 
   readonly formatPrice = formatPrice;
   readonly searchProduct = signal('');

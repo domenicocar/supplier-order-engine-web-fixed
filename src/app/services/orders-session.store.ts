@@ -24,6 +24,10 @@ export class OrdersSessionStore {
     return this.ordersState().find((order) => order.id === id);
   }
 
+  removeOrder(orderId: string): void {
+    this.ordersState.update((orders) => orders.filter((order) => order.id !== orderId));
+  }
+
   upsertOrder(order: SessionOrder): void {
     this.ordersState.update((orders) => {
       const index = orders.findIndex((current) => current.id === order.id);
@@ -37,6 +41,10 @@ export class OrdersSessionStore {
         ...orders[index],
         ...order,
         createdAt: order.createdAt || orders[index].createdAt,
+        productsCount:
+          order.productsCount ??
+          (order.items.length > 0 ? order.items.length : orders[index].productsCount),
+        closure: order.closure ?? orders[index].closure,
         suppliers: order.suppliers ?? orders[index].suppliers,
         supplierComparisonRows:
           order.supplierComparisonRows ?? orders[index].supplierComparisonRows,
@@ -59,6 +67,7 @@ export class OrdersSessionStore {
           ? {
               ...order,
               status: payload.status ?? order.status,
+              productsCount: payload.items.length,
               items: payload.items,
               reviewItems: payload.reviewItems,
               importResult: payload.importResult
@@ -102,6 +111,7 @@ export class OrdersSessionStore {
         order.id === orderId
           ? {
               ...order,
+              productsCount: items.length,
               items: items.map((item) => ({ ...item }))
             }
           : order
@@ -134,6 +144,12 @@ export class OrdersSessionStore {
       ...order,
       items: [...order.items],
       reviewItems: [...order.reviewItems],
+      closure: order.closure
+        ? {
+            ...order.closure,
+            lines: [...order.closure.lines]
+          }
+        : null,
       suppliers: order.suppliers ? [...order.suppliers] : undefined,
       supplierComparisonRows: order.supplierComparisonRows
         ? [...order.supplierComparisonRows]

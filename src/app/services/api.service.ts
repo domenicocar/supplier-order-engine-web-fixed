@@ -30,6 +30,10 @@ export class ApiService {
     return this.http.post<T>(this.buildUrl(path), body, options);
   }
 
+  delete<T>(path: string, options?: RequestOptions): Observable<T> {
+    return this.http.delete<T>(this.buildUrl(path), options);
+  }
+
   postFormData<T>(path: string, formData: FormData): Observable<T> {
     return this.http.post<T>(this.buildUrl(path), formData);
   }
