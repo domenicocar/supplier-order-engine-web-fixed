@@ -19,6 +19,5 @@ export interface SupplierStoredFile {
 }
 
 export interface SupplierCreatePayload {
-  code?: string | null;
   name: string;
 }

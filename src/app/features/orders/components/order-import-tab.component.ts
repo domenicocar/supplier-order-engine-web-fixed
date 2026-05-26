@@ -342,7 +342,7 @@ type SupplierMappingField =
 
         <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div
-            class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,16rem)_auto]"
+            class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]"
           >
             <div>
               <label class="mb-2 block text-sm font-medium text-slate-700"
@@ -352,17 +352,6 @@ type SupplierMappingField =
                 type="text"
                 [(ngModel)]="newSupplierName"
                 placeholder="Es. Pagano"
-                class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700"
-              />
-            </div>
-            <div>
-              <label class="mb-2 block text-sm font-medium text-slate-700"
-                >Codice</label
-              >
-              <input
-                type="text"
-                [(ngModel)]="newSupplierCode"
-                placeholder="Es. PAGANO"
                 class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700"
               />
             </div>
@@ -425,11 +414,13 @@ type SupplierMappingField =
                     <h3 class="text-xl font-semibold text-slate-950">
                       {{ supplier.name }}
                     </h3>
-                    <p
-                      class="mt-1 text-xs uppercase tracking-[0.16em] text-slate-400"
-                    >
-                      {{ supplier.code || supplier.id }}
-                    </p>
+                    @if (supplier.code) {
+                      <p
+                        class="mt-1 text-xs uppercase tracking-[0.16em] text-slate-400"
+                      >
+                        {{ supplier.code }}
+                      </p>
+                    }
                     <p class="mt-3 text-sm leading-6 text-slate-500">
                       Carica il file fornitore e conferma le colonne prima di
                       usarlo nei confronti.
@@ -727,7 +718,6 @@ export class OrderImportTabComponent {
   }>();
   readonly supplierCreateRequested = output<{
     name: string;
-    code?: string | null;
   }>();
 
   readonly orderFileInputId = 'order-import-upload-input';
@@ -738,7 +728,6 @@ export class OrderImportTabComponent {
   >({});
 
   newSupplierName = '';
-  newSupplierCode = '';
 
   readonly orderFileCardState = computed<UploadCardState>(() => {
     const previewState = this.orderImportPreviewState();
@@ -873,18 +862,13 @@ export class OrderImportTabComponent {
 
   createSupplier(): void {
     const name = this.newSupplierName.trim();
-    const code = this.newSupplierCode.trim();
 
     if (!name) {
       return;
     }
 
-    this.supplierCreateRequested.emit({
-      name,
-      code: code.length > 0 ? code : null,
-    });
+    this.supplierCreateRequested.emit({ name });
     this.newSupplierName = '';
-    this.newSupplierCode = '';
   }
 
   onOrderMappingChange(

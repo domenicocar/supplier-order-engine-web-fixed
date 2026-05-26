@@ -111,7 +111,7 @@ export class OrdersService {
 
   createOrderSupplier(
     orderId: string,
-    payload: SupplierDefinition | { name: string; code?: string | null; active?: boolean }
+    payload: SupplierDefinition | { name: string; active?: boolean }
   ): Observable<SupplierDefinition> {
     return this.api.post<unknown>(`/orders/${orderId}/suppliers`, payload).pipe(
       map((response) => {
@@ -119,7 +119,7 @@ export class OrdersService {
         return supplier ?? {
           id: payload.name,
           name: payload.name,
-          code: payload.code ?? null
+          code: null
         };
       })
     );
