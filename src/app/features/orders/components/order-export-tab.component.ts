@@ -37,7 +37,9 @@ import { formatPrice } from './order-detail-view.utils';
 
         <div class="flex flex-wrap gap-3">
           @if (readOnly()) {
-            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
+            <div
+              class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900"
+            >
               Ordine storico chiuso
             </div>
           } @else {
@@ -80,15 +82,21 @@ import { formatPrice } from './order-detail-view.utils';
 
           <div class="summary-hero__stats">
             <div class="summary-hero__stat">
-              <p class="summary-hero__stat-value">{{ currentOverview.productsCount }}</p>
+              <p class="summary-hero__stat-value">
+                {{ currentOverview.productsCount }}
+              </p>
               <p class="summary-hero__stat-label">Products</p>
             </div>
             <div class="summary-hero__stat">
-              <p class="summary-hero__stat-value">{{ currentOverview.totalQuantity }}</p>
+              <p class="summary-hero__stat-value">
+                {{ currentOverview.totalQuantity }}
+              </p>
               <p class="summary-hero__stat-label">Pieces</p>
             </div>
             <div class="summary-hero__stat">
-              <p class="summary-hero__stat-value">{{ currentOverview.suppliersCount }}</p>
+              <p class="summary-hero__stat-value">
+                {{ currentOverview.suppliersCount }}
+              </p>
               <p class="summary-hero__stat-label">Suppliers</p>
             </div>
           </div>
@@ -151,208 +159,188 @@ import { formatPrice } from './order-detail-view.utils';
         }
 
         <div class="mt-8">
-          <div class="rounded-3xl border border-slate-200 bg-white p-5">
-            <div
-              class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <h3 class="panel-title">Per fornitore</h3>
-                <span class="panel-copy">spaccato acquisti</span>
-              </div>
+          <div class="flex justify-end">
+            <input
+              type="text"
+              [ngModel]="searchProduct()"
+              (ngModelChange)="searchProduct.set($event)"
+              placeholder="Cerca prodotto per nome o EAN..."
+              class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--brand-primary)] sm:w-72"
+            />
+          </div>
 
-              <input
-                type="text"
-                [ngModel]="searchProduct()"
-                (ngModelChange)="searchProduct.set($event)"
-                placeholder="Cerca prodotto per nome o EAN..."
-                class="w-full sm:w-72 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--brand-primary)]"
-              />
-            </div>
-
-            @if (filteredSuppliers().length === 0) {
-              <p class="mt-4 text-sm text-slate-500">
-                Nessun fornitore o prodotto corrispondente alla ricerca.
-              </p>
-            } @else {
-              <ul class="mt-4 grid gap-4">
-                @for (
-                  supplier of filteredSuppliers();
-                  track supplier.supplierId || supplier.supplierName
-                ) {
-                  <li
-                    class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700"
-                  >
-                    <div class="flex items-start justify-between gap-4">
-                      <div>
-                        <p class="font-medium text-slate-950">
-                          {{ supplier.supplierName }}
-                        </p>
-                        <p
-                          class="mt-1 text-xs uppercase tracking-[0.15em] text-slate-400"
+          @if (filteredSuppliers().length === 0) {
+            <p class="mt-4 text-sm text-slate-500">
+              Nessun fornitore o prodotto corrispondente alla ricerca.
+            </p>
+          } @else {
+            <ul class="mt-6 grid gap-8">
+              @for (
+                supplier of filteredSuppliers();
+                track supplier.supplierId || supplier.supplierName
+              ) {
+                <li class="supplier-summary">
+                  <div class="supplier-summary__header">
+                    <div class="supplier-summary__meta">
+                      <h4 class="supplier-summary__title">
+                        {{ supplier.supplierName }}
+                      </h4>
+                      <p class="supplier-summary__stats">
+                        <span>Prodotti: {{ supplier.lineCount }}</span>
+                        <span
+                          >Pezzi: {{ formatInteger(supplier.totalQuantity) }}</span
                         >
-                          {{ supplier.supplierId || 'non assegnato' }}
-                        </p>
-                      </div>
-                      <p class="text-lg font-semibold text-slate-950">
-                        {{ formatPrice(supplier.subtotal) }}
                       </p>
                     </div>
 
-                    <div class="mt-4 grid grid-cols-3 gap-3">
-                      <div
-                        class="rounded-2xl bg-white px-3 py-2 border border-slate-100"
+                    <div class="supplier-summary__subtotal">
+                      <span class="supplier-summary__subtotal-label"
+                        >Subtotale Fornitore</span
                       >
-                        <p
-                          class="text-[11px] uppercase tracking-[0.14em] text-slate-400"
-                        >
-                          Prodotti Totali
-                        </p>
-                        <p class="mt-1 font-semibold text-slate-950">
-                          {{ supplier.lineCount }}
-                        </p>
-                      </div>
-                      <div
-                        class="rounded-2xl bg-white px-3 py-2 border border-slate-100"
-                      >
-                        <p
-                          class="text-[11px] uppercase tracking-[0.14em] text-slate-400"
-                        >
-                          Pezzi
-                        </p>
-                        <p class="mt-1 font-semibold text-slate-950">
-                          {{ supplier.totalQuantity }}
-                        </p>
-                      </div>
-                      <div
-                        class="rounded-2xl bg-white px-3 py-2 border border-slate-100"
-                      >
-                        <p
-                          class="text-[11px] uppercase tracking-[0.14em] text-slate-400"
-                        >
-                          Lacune
-                        </p>
-                        <p class="mt-1 font-semibold text-slate-950">
-                          {{
-                            supplier.missingPricesCount +
-                              supplier.missingQuantitiesCount
-                          }}
-                        </p>
-                      </div>
+                      <strong class="supplier-summary__subtotal-value">
+                        {{ formatEuro(supplier.subtotal) }}
+                      </strong>
                     </div>
+                  </div>
 
-                    <div
-                      class="mt-4 rounded-2xl border border-slate-200 bg-white p-3"
-                    >
-                      <p
-                        class="mb-3 text-[11px] uppercase tracking-[0.14em] text-slate-400"
-                      >
-                        Cosa stai comprando da questo fornitore ({{
-                          supplier.items.length
-                        }})
-                      </p>
-                      <ul class="grid gap-2 max-h-[300px] overflow-y-auto pr-2">
+                  <div class="supplier-table-shell">
+                    <div class="supplier-table supplier-table--supplier">
+                      <div class="supplier-table__head">
+                        <span>EAN / SKU</span>
+                        <span>Descrizione prodotto</span>
+                        <span class="text-right">Quantita</span>
+                        <span class="text-right">Prezzo unit.</span>
+                        <span class="text-right">Subtotale</span>
+                      </div>
+
+                      <ul class="supplier-table__body">
                         @for (item of supplier.items; track item.ean) {
-                          <li
-                            class="flex items-start justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 border border-slate-100"
-                          >
-                            <div>
-                              <p class="font-medium text-slate-950">
+                          <li class="supplier-table__row">
+                            <div
+                              class="supplier-table__cell supplier-table__cell--ean"
+                            >
+                              {{ item.ean }}
+                            </div>
+
+                            <div
+                              class="supplier-table__cell supplier-table__cell--description"
+                            >
+                              <p class="supplier-table__product-name">
                                 {{ item.description }}
                               </p>
-                              <p
-                                class="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400"
-                              >
-                                {{ item.ean }}
-                              </p>
-                            </div>
-                            <div class="text-right shrink-0">
-                              <p class="font-medium text-slate-950">
-                                x{{ item.quantity ?? '-' }} cart.
-                                @if (item.packageSize > 1) {
-                                  · conf. {{ item.packageSize }}
-                                }
-                              </p>
-                              @if (item.totalPieces !== null) {
-                                <p class="mt-1 text-xs text-slate-500">
-                                  {{ item.totalPieces }} pezzi
+                              @if (item.packageSize > 1) {
+                                <p class="supplier-table__product-meta">
+                                  Confezione da {{ item.packageSize }}
                                 </p>
                               }
-                              <p class="mt-1 text-xs text-slate-500">
-                                {{ formatPrice(item.lineTotal) }}
-                              </p>
+                            </div>
+
+                            <div
+                              class="supplier-table__cell supplier-table__cell--number"
+                            >
+                              {{ formatInteger(item.totalPieces) }}
+                            </div>
+
+                            <div
+                              class="supplier-table__cell supplier-table__cell--currency"
+                            >
+                              {{ formatEuro(item.unitPrice) }}
+                            </div>
+
+                            <div
+                              class="supplier-table__cell supplier-table__cell--subtotal"
+                            >
+                              {{ formatEuro(item.lineTotal) }}
                             </div>
                           </li>
                         }
                       </ul>
                     </div>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
         </div>
 
-        <div class="mt-8 rounded-3xl border border-slate-200 bg-white p-5">
-          <div>
-            <h3 class="panel-title">Prodotti non trovati</h3>
-            <span class="panel-copy">
-              sempre visibili nel riepilogo per completare l'ordine prima dell'export
-            </span>
-          </div>
-
+        <div class="mt-8">
           @if (missingRows().length === 0) {
             <div
               class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900"
             >
-              Nessun prodotto mancante: tutti gli articoli dell'ordine risultano coperti dai fornitori caricati.
+              Nessun prodotto mancante: tutti gli articoli dell'ordine
+              risultano coperti dai fornitori caricati.
             </div>
           } @else {
-            <div
-              class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900"
-            >
-              <p class="font-semibold text-amber-950">
-                {{ missingRows().length }} prodotti del tuo ordine non sono
-                stati trovati tra i fornitori caricati.
-              </p>
-            </div>
-
-            <div class="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-              <div
-                class="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-4 border-b border-slate-200 bg-white px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400"
-              >
-                <span>Prodotto</span>
-                <span>Cartoni</span>
-                <span>Pezzi</span>
+            <div class="missing-summary">
+              <div class="missing-summary__intro">
+                <i
+                  class="pi pi-exclamation-triangle missing-summary__icon"
+                  aria-hidden="true"
+                ></i>
+                <div>
+                  <p class="missing-summary__title">
+                    Prodotti non trovati ({{ missingRows().length }})
+                  </p>
+                  <p class="missing-summary__copy">
+                    Questi articoli non sono stati associati ad alcun fornitore.
+                  </p>
+                </div>
               </div>
-              <ul class="max-h-[420px] overflow-y-auto">
-              @for (item of missingRows(); track item.ean) {
-                <li
-                  class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-start gap-4 border-b border-slate-200 px-4 py-3 last:border-b-0"
-                >
-                  <div class="min-w-0">
-                    <p class="truncate font-semibold text-slate-950">{{ item.description }}</p>
-                    <p class="mt-1 text-xs uppercase tracking-[0.14em] text-slate-400">
-                      {{ item.ean }}
-                    </p>
-                    <p class="mt-2 text-sm text-amber-900">
-                      {{ item.missingReason || 'Prodotto non trovato nei fornitori caricati.' }}
-                    </p>
+
+              <div class="supplier-table-shell mt-4">
+                <div class="supplier-table supplier-table--missing">
+                  <div class="supplier-table__head">
+                    <span>EAN / SKU</span>
+                    <span>Descrizione prodotto</span>
+                    <span class="text-right">Quantita</span>
+                    <span class="text-right">Azioni</span>
                   </div>
-                  <div class="text-right">
-                    <p class="text-sm font-semibold text-slate-950">
-                      {{ item.quantity ?? '-' }}
-                    </p>
-                    <p class="mt-1 text-xs text-slate-500">cartoni</p>
-                  </div>
-                  <div class="text-right">
-                    <p class="text-sm font-semibold text-slate-950">
-                      {{ item.totalPieces ?? 0 }}
-                    </p>
-                    <p class="mt-1 text-xs text-slate-500">pezzi</p>
-                  </div>
-                </li>
-              }
-              </ul>
+
+                  <ul class="supplier-table__body">
+                    @for (item of missingRows(); track item.ean) {
+                      <li class="supplier-table__row supplier-table__row--missing">
+                        <div
+                          class="supplier-table__cell supplier-table__cell--ean"
+                        >
+                          {{ item.ean }}
+                        </div>
+
+                        <div
+                          class="supplier-table__cell supplier-table__cell--description"
+                        >
+                          <p class="supplier-table__product-name">
+                            {{ item.description }}
+                          </p>
+                          <p class="supplier-table__product-meta">
+                            {{
+                              item.missingReason ||
+                                'Prodotto non trovato nei fornitori caricati.'
+                            }}
+                          </p>
+                        </div>
+
+                        <div
+                          class="supplier-table__cell supplier-table__cell--number"
+                        >
+                          {{ formatInteger(item.quantity) }}
+                        </div>
+
+                        <div
+                          class="supplier-table__cell supplier-table__cell--action"
+                        >
+                          <button
+                            type="button"
+                            class="supplier-table__action-button"
+                          >
+                            Associa a catalogo
+                          </button>
+                        </div>
+                      </li>
+                    }
+                  </ul>
+                </div>
+              </div>
             </div>
           }
         </div>
@@ -384,6 +372,33 @@ export class OrderExportTabComponent {
 
   readonly formatPrice = formatPrice;
   readonly searchProduct = signal('');
+
+  private readonly euroFormatter = new Intl.NumberFormat('it-IT', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  private readonly integerFormatter = new Intl.NumberFormat('it-IT', {
+    maximumFractionDigits: 0,
+  });
+
+  formatEuro(value: number | null): string {
+    if (value === null) {
+      return '€ -';
+    }
+
+    return this.euroFormatter.format(value);
+  }
+
+  formatInteger(value: number | null): string {
+    if (value === null) {
+      return '-';
+    }
+
+    return this.integerFormatter.format(value);
+  }
 
   coverageLabel(overview: OrderExportOverview): string {
     if (overview.productsCount <= 0) {

@@ -468,6 +468,222 @@ a {
     width: 1px;
     align-self: stretch;
   }
+
+  .supplier-summary + .supplier-summary {
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px dashed rgba(198, 205, 228, 0.9);
+  }
+
+  .supplier-summary__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.25rem;
+    margin-bottom: 1rem;
+    padding-top: 0.2rem;
+  }
+
+  .supplier-summary__meta {
+    min-width: 0;
+  }
+
+  .supplier-summary__title {
+    margin: 0;
+    color: #16213d;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+  }
+
+  .supplier-summary__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.1rem;
+    margin: 0.35rem 0 0;
+    color: #263255;
+    font-size: 1rem;
+    font-weight: 400;
+  }
+
+  .supplier-summary__subtotal {
+    min-width: 13rem;
+    text-align: right;
+  }
+
+  .supplier-summary__subtotal-label {
+    display: block;
+    color: #263255;
+    font-size: 1rem;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+
+  .supplier-summary__subtotal-value {
+    display: block;
+    margin-top: 0.35rem;
+    color: #4047cf;
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+
+  .supplier-table-shell {
+    overflow-x: auto;
+    border: 1px solid #d7dcef;
+    border-radius: 1.4rem;
+    background: #ffffff;
+    box-shadow: 0 10px 28px rgba(80, 94, 189, 0.06);
+  }
+
+  .supplier-table {
+    min-width: 860px;
+  }
+
+  .supplier-table--supplier {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .supplier-table__head,
+  .supplier-table__row {
+    display: grid;
+    grid-template-columns:
+      minmax(110px, 0.9fr)
+      minmax(280px, 2.2fr)
+      minmax(90px, 0.8fr)
+      minmax(120px, 0.9fr)
+      minmax(120px, 1fr);
+    gap: 1.5rem;
+    align-items: center;
+  }
+
+  .supplier-table__head {
+    padding: 1rem 1.4rem;
+    border-bottom: 1px solid #d7dcef;
+    background: #f3f4ff;
+    color: #4f5888;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .supplier-table__body {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .supplier-table--supplier .supplier-table__body {
+    max-height: 24rem;
+    overflow-y: auto;
+  }
+
+  .supplier-table__row {
+    padding: 1.3rem 1.4rem;
+    border-bottom: 1px solid #e4e8f6;
+    color: #11182e;
+  }
+
+  .supplier-table__row:last-child {
+    border-bottom: 0;
+  }
+
+  .supplier-table__cell {
+    min-width: 0;
+    font-size: 0.95rem;
+  }
+
+  .supplier-table__cell--ean {
+    color: #34416c;
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    word-break: break-word;
+  }
+
+  .supplier-table__cell--number,
+  .supplier-table__cell--currency,
+  .supplier-table__cell--subtotal,
+  .supplier-table__cell--action {
+    text-align: right;
+    justify-self: end;
+  }
+
+  .supplier-table__cell--subtotal {
+    font-weight: 700;
+  }
+
+  .supplier-table__product-name {
+    margin: 0;
+    color: #141c35;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  .supplier-table__product-meta {
+    margin: 0.35rem 0 0;
+    color: #677499;
+    font-size: 0.84rem;
+    line-height: 1.4;
+  }
+
+  .missing-summary {
+    margin-top: 0.25rem;
+  }
+
+  .missing-summary__intro {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+  }
+
+  .missing-summary__icon {
+    margin-top: 0.1rem;
+    color: #b43b3b;
+    font-size: 1rem;
+  }
+
+  .missing-summary__title {
+    margin: 0;
+    color: #b42318;
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .missing-summary__copy {
+    margin: 0.4rem 0 0;
+    color: #5e6585;
+    font-size: 0.92rem;
+  }
+
+  .supplier-table--missing .supplier-table__head,
+  .supplier-table--missing .supplier-table__row {
+    grid-template-columns:
+      minmax(110px, 0.9fr)
+      minmax(280px, 2.2fr)
+      minmax(90px, 0.7fr)
+      minmax(170px, 1fr);
+  }
+
+  .supplier-table__action-button {
+    border: 0;
+    background: transparent;
+    color: #4047cf;
+    font-size: 0.84rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .supplier-table__action-button:hover {
+    color: #2f37b5;
+  }
 }
 
 @media (min-width: 1024px) {
@@ -508,6 +724,23 @@ a {
 
   .order-header__metrics {
     width: 100%;
+  }
+
+  .supplier-summary__header {
+    flex-direction: column;
+  }
+
+  .supplier-summary__subtotal {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .supplier-summary__title {
+    font-size: 1.6rem;
+  }
+
+  .supplier-summary__subtotal-value {
+    font-size: 1.9rem;
   }
 }
 

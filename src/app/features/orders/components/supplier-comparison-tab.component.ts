@@ -41,17 +41,22 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         </div>
       </div>
 
-      <div class="mt-6 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div class="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <input
+          type="search"
+          placeholder="Cerca per EAN, descrizione o fornitore..."
+          class="app-input w-full lg:max-w-xl"
+          [value]="searchTerm()"
+          (input)="onSearchChange($event)"
+        />
+
+        <div class="flex flex-col gap-2 lg:items-end">
           <div class="flex flex-wrap items-center gap-2">
-            <span class="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-text-muted)]">
-              Vista
-            </span>
             <button
               type="button"
               class="rounded-full px-4 py-2 text-sm font-semibold transition"
               [class]="catalogViewMode() === 'all'
-                ? 'bg-[var(--brand-primary)] text-white shadow-sm'
+                ? 'border border-[var(--brand-primary)] bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]'
                 : 'border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]'"
               (click)="setCatalogViewMode('all')"
             >
@@ -61,7 +66,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
               type="button"
               class="rounded-full px-4 py-2 text-sm font-semibold transition"
               [class]="catalogViewMode() === 'ordered'
-                ? 'bg-[var(--brand-primary)] text-white shadow-sm'
+                ? 'border border-[var(--brand-primary)] bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]'
                 : 'border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]'"
               (click)="setCatalogViewMode('ordered')"
             >
@@ -73,16 +78,6 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
             <p class="text-sm text-[var(--app-text-muted)]">Confronto fornitori in corso...</p>
           }
         </div>
-      </div>
-
-      <div class="mt-4">
-        <input
-          type="search"
-          placeholder="Cerca per EAN, descrizione o fornitore..."
-          class="app-input w-full"
-          [value]="searchTerm()"
-          (input)="onSearchChange($event)"
-        />
       </div>
 
       @if (error()) {
@@ -111,15 +106,64 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
               <tr>
                 <th>EAN</th>
                 <th>Descrizione</th>
-                <th>Quantità</th>
-                <th>Prezzo scelto</th>
                 <th>Fornitori disponibili</th>
+                <th>Quantita</th>
+                <th>Totale confezione</th>
+                <th>Totale dovuto</th>
               </tr>
             </ng-template>
             <ng-template pTemplate="body" let-row>
               <tr>
                 <td>{{ row.ean }}</td>
                 <td>{{ row.description }}</td>
+                <td class="min-w-72">
+                  <div class="flex flex-col gap-2">
+                    <div class="comparison-supplier-select">
+                      <div
+                        class="comparison-supplier-select__card"
+                        [class.comparison-supplier-select__card--disabled]="
+                          row.availableSuppliers.length === 0
+                        "
+                      >
+                        <div class="comparison-supplier-select__status">
+                          <i class="pi pi-check"></i>
+                        </div>
+
+                        <div class="comparison-supplier-select__content">
+                          <p class="comparison-supplier-select__name">
+                            {{ row.selectedSupplierName || 'Nessun fornitore' }}
+                          </p>
+                          <p class="comparison-supplier-select__price">
+                            {{ formatSupplierUnitPrice(row) }} cad.
+                          </p>
+                        </div>
+
+                        <i
+                          class="pi pi-chevron-down comparison-supplier-select__chevron"
+                          aria-hidden="true"
+                        ></i>
+                      </div>
+
+                      <select
+                        class="comparison-supplier-select__native"
+                        data-comparison-field="supplier"
+                        [attr.data-comparison-ean]="row.ean"
+                        [value]="row.selectedSupplierId"
+                        [disabled]="row.availableSuppliers.length === 0"
+                        (change)="onSelectionChange(row.ean, $event)"
+                      >
+                        @for (option of row.availableSuppliers; track option.supplierId) {
+                          <option [value]="option.supplierId">
+                            {{ formatSupplierOption(option) }}
+                          </option>
+                        }
+                      </select>
+                    </div>
+                    <p class="px-1 text-xs text-[var(--app-text-muted)]">
+                      {{ supplierAvailabilityLabel(row.availableSuppliers.length) }}
+                    </p>
+                  </div>
+                </td>
                 <td class="min-w-32">
                   <input
                     type="number"
@@ -133,40 +177,24 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                     (input)="onQuantityChange(row.ean, $event)"
                   />
                 </td>
-                <td class="min-w-56">
-                  <span class="app-pill rounded-full px-3 py-2 text-xs">
-                    {{ row.selectedSupplierName || 'Nessun fornitore' }}
-                    @if (row.selectedSupplierName || row.selectedPrice !== null) {
-                      {{ ' · ' + formatPrice(row.selectedPrice) + ' cad. · conf. ' + row.selectedPackageSize }}
-                    }
-                  </span>
+                <td class="min-w-40">
+                  <div class="comparison-pack-total">
+                    {{ formatSupplierPackTotal(row) }}
+                    <span class="comparison-pack-total__meta">
+                      (conf. {{ row.selectedPackageSize }})
+                    </span>
+                  </div>
                 </td>
-                <td class="min-w-56">
-                  <div class="flex flex-col gap-2">
-                    <select
-                      class="app-input w-full rounded-xl px-3 py-2"
-                      data-comparison-field="supplier"
-                      [attr.data-comparison-ean]="row.ean"
-                      [value]="row.selectedSupplierId"
-                      [disabled]="row.availableSuppliers.length === 0"
-                      (change)="onSelectionChange(row.ean, $event)"
-                    >
-                      @for (option of row.availableSuppliers; track option.supplierId) {
-                        <option [value]="option.supplierId">
-                          {{ formatSupplierOption(option) }}
-                        </option>
-                      }
-                    </select>
-                    <p class="px-1 text-xs text-[var(--app-text-muted)]">
-                      {{ supplierAvailabilityLabel(row.availableSuppliers.length) }}
-                    </p>
+                <td class="min-w-40">
+                  <div class="comparison-total-due">
+                    {{ formatSupplierTotalDue(row) }}
                   </div>
                 </td>
               </tr>
             </ng-template>
             <ng-template pTemplate="emptymessage">
               <tr>
-                <td colspan="5" class="px-4 py-5 text-sm text-[var(--app-text-muted)]">
+                <td colspan="6" class="px-4 py-5 text-sm text-[var(--app-text-muted)]">
                   Nessun prodotto corrisponde alla ricerca corrente.
                 </td>
               </tr>
@@ -204,6 +232,109 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
       }
     </section>
   `,
+  styles: [
+    `
+      .comparison-pack-total {
+        color: #16213d;
+        font-size: 0.95rem;
+        font-weight: 600;
+      }
+
+      .comparison-total-due {
+        color: #16213d;
+        font-size: 0.95rem;
+        font-weight: 700;
+      }
+
+      .comparison-pack-total__meta {
+        color: #64748b;
+        font-size: 0.8rem;
+        font-weight: 400;
+      }
+
+      .comparison-supplier-select {
+        position: relative;
+      }
+
+      .comparison-supplier-select__card {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.6rem;
+        min-height: 3.2rem;
+        padding: 0.55rem 0.8rem;
+        border: 2px solid #447a59;
+        border-radius: 1.1rem;
+        background: #f4f8f5;
+        box-shadow: inset 0 0 0 1px rgba(68, 122, 89, 0.08);
+      }
+
+      .comparison-supplier-select__card--disabled {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+        box-shadow: none;
+      }
+
+      .comparison-supplier-select__status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.2rem;
+        height: 1.2rem;
+        border-radius: 999px;
+        background: #447a59;
+        color: #ffffff;
+        font-size: 0.6rem;
+      }
+
+      .comparison-supplier-select__card--disabled .comparison-supplier-select__status {
+        background: #cbd5e1;
+        color: #64748b;
+      }
+
+      .comparison-supplier-select__content {
+        min-width: 0;
+      }
+
+      .comparison-supplier-select__name {
+        margin: 0;
+        color: #447a59;
+        font-size: 0.72rem;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+
+      .comparison-supplier-select__card--disabled .comparison-supplier-select__name {
+        color: #64748b;
+      }
+
+      .comparison-supplier-select__price {
+        margin: 0.15rem 0 0;
+        color: #16213d;
+        font-size: 0.72rem;
+        font-weight: 500;
+        line-height: 1.2;
+      }
+
+      .comparison-supplier-select__chevron {
+        color: #16213d;
+        font-size: 0.85rem;
+      }
+
+      .comparison-supplier-select__native {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      .comparison-supplier-select__native:disabled {
+        cursor: not-allowed;
+      }
+    `,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SupplierComparisonTabComponent {
@@ -294,6 +425,36 @@ export class SupplierComparisonTabComponent {
   readonly formatSupplierOption = formatSupplierOption;
   readonly supplierAvailabilityLabel = supplierAvailabilityLabel;
   readonly trackByEan = (_index: number, row: SupplierComparisonTableRow) => row.ean;
+  private readonly euroFormatter = new Intl.NumberFormat('it-IT', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+  formatSupplierPackTotal(row: SupplierComparisonTableRow): string {
+    if (row.selectedPrice === null) {
+      return '€ -';
+    }
+
+    return this.euroFormatter.format(row.selectedPrice * row.selectedPackageSize);
+  }
+
+  formatSupplierUnitPrice(row: SupplierComparisonTableRow): string {
+    if (row.selectedPrice === null) {
+      return '€ -';
+    }
+
+    return this.euroFormatter.format(row.selectedPrice);
+  }
+
+  formatSupplierTotalDue(row: SupplierComparisonTableRow): string {
+    if (row.selectedPrice === null || row.quantity === null) {
+      return '€ -';
+    }
+
+    return this.euroFormatter.format(row.selectedPrice * row.selectedPackageSize * row.quantity);
+  }
 
   setCatalogViewMode(mode: 'all' | 'ordered'): void {
     this.catalogViewMode.set(mode);
