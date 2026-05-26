@@ -42,10 +42,10 @@ export class OrdersSessionStore {
           order.supplierComparisonRows ?? orders[index].supplierComparisonRows,
         importResult: order.importResult ?? orders[index].importResult,
         exportResult: order.exportResult ?? orders[index].exportResult,
-        supplierUploads: {
-          ...orders[index].supplierUploads,
-          ...order.supplierUploads
-        }
+        supplierUploads: this.mergeSupplierUploads(
+          orders[index].supplierUploads,
+          order.supplierUploads
+        )
       };
 
       return next;
@@ -140,5 +140,41 @@ export class OrdersSessionStore {
         : undefined,
       supplierUploads: { ...order.supplierUploads }
     };
+  }
+
+  private mergeSupplierUploads(
+    currentUploads: SessionOrder['supplierUploads'],
+    incomingUploads: SessionOrder['supplierUploads']
+  ): SessionOrder['supplierUploads'] {
+    const mergedUploads: SessionOrder['supplierUploads'] = {
+      ...currentUploads
+    };
+
+    for (const [supplierId, uploads] of Object.entries(incomingUploads)) {
+      const existingUploads = currentUploads[supplierId] ?? [];
+
+      mergedUploads[supplierId] = uploads.map((upload, index) => {
+        const matchingExistingUpload =
+          existingUploads.find((existingUpload) =>
+            existingUpload.fileName === upload.fileName &&
+            existingUpload.storedPath === upload.storedPath
+          ) ??
+          existingUploads[index] ??
+          existingUploads.at(-1);
+
+        if ((upload.products?.length ?? 0) > 0 || !matchingExistingUpload) {
+          return upload;
+        }
+
+        return {
+          ...upload,
+          products: matchingExistingUpload.products,
+          files:
+            upload.files.length > 0 ? upload.files : matchingExistingUpload.files
+        };
+      });
+    }
+
+    return mergedUploads;
   }
 }

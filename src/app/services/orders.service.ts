@@ -109,6 +109,12 @@ export class OrdersService {
     );
   }
 
+  getOrderCatalog(orderId: string): Observable<SupplierComparisonResponse> {
+    return this.api.get<unknown>(`/orders/${orderId}/catalog`).pipe(
+      map((payload) => this.normalizeSupplierComparisonResponse(payload))
+    );
+  }
+
   createOrderSupplier(
     orderId: string,
     payload: SupplierDefinition | { name: string; active?: boolean }
@@ -202,7 +208,9 @@ export class OrdersService {
                   : this.pickString(source, ['message', 'status', 'result']) ?? 'Upload completato',
             preview,
             files: [],
-            products: []
+            products: this.normalizeSupplierUploadProducts(
+              this.pickValue(source, ['products', 'items', 'rows', 'importedProducts', 'imported_products'])
+            )
           };
         })
       );
@@ -216,6 +224,7 @@ export class OrdersService {
       this.pickString(orderSource, ['status']) ??
       this.pickString(source, ['status']) ??
       'CREATED';
+    const normalizedItems = this.normalizeItems(this.pickValue(orderSource, ['items']));
     const importedItemDetails = this.normalizeItems(
       this.pickValue(orderSource, ['importedItemDetails', 'imported_item_details'])
     );
@@ -227,7 +236,7 @@ export class OrdersService {
         this.pickString(orderSource, ['createdAt', 'created_at']) ??
         this.pickString(source, ['createdAt', 'created_at']) ??
         '',
-      items: this.normalizeItems(this.pickValue(orderSource, ['items'])),
+      items: this.mergeOrderItemsWithImportedDetails(normalizedItems, importedItemDetails),
       reviewItems: this.normalizeReviewItems(this.pickValue(orderSource, ['reviewItems'])),
       importPdfStatus: this.pickPdfImportStatus(
         orderSource,
@@ -268,6 +277,51 @@ export class OrdersService {
         )
       )
     };
+  }
+
+  private mergeOrderItemsWithImportedDetails(
+    items: OrderItem[],
+    importedItemDetails: OrderItem[]
+  ): OrderItem[] {
+    if (items.length === 0) {
+      return importedItemDetails;
+    }
+
+    if (importedItemDetails.length === 0) {
+      return items;
+    }
+
+    const importedDetailsByEan = new Map<string, OrderItem[]>();
+
+    for (const detail of importedItemDetails) {
+      const bucket = importedDetailsByEan.get(detail.ean) ?? [];
+      bucket.push(detail);
+      importedDetailsByEan.set(detail.ean, bucket);
+    }
+
+    return items.map((item, index) => {
+      if (item.description?.trim()) {
+        return item;
+      }
+
+      const sameEanDetails = importedDetailsByEan.get(item.ean) ?? [];
+      const sameQuantityDetail = sameEanDetails.find((detail) => detail.quantity === item.quantity);
+      const indexedDetail = importedItemDetails[index];
+      const fallbackSameEanDetail = sameEanDetails[0];
+      const detail =
+        sameQuantityDetail ??
+        (indexedDetail?.ean === item.ean ? indexedDetail : undefined) ??
+        fallbackSameEanDetail;
+
+      if (!detail?.description?.trim()) {
+        return item;
+      }
+
+      return {
+        ...item,
+        description: detail.description
+      };
+    });
   }
 
   private normalizeImportOrderResponse(payload: unknown): ImportOrderResponse {

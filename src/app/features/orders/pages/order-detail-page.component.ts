@@ -19,6 +19,7 @@ import {
   OrderImportColumnMapping,
   OrderItem,
   ReviewItem,
+  SessionOrder,
   SupplierColumnMapping,
   SupplierComparisonRow
 } from '../../../models/order.models';
@@ -43,7 +44,6 @@ import {
   sumRoundedCurrency
 } from '../components/order-detail-view.utils';
 import { OrderImportTabComponent } from '../components/order-import-tab.component';
-import { OrderProductsTabComponent } from '../components/order-products-tab.component';
 import { SupplierComparisonTabComponent } from '../components/supplier-comparison-tab.component';
 
 @Component({
@@ -52,7 +52,6 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
   imports: [
     OrderExportTabComponent,
     OrderImportTabComponent,
-    OrderProductsTabComponent,
     RouterLink,
     SupplierComparisonTabComponent,
     TabsModule
@@ -90,7 +89,6 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
         <p-tabs [value]="'import'" [lazy]="true" class="flex flex-col gap-6">
           <p-tablist>
             <p-tab value="import">Import</p-tab>
-            <p-tab value="products" [disabled]="true">Tabella prodotti</p-tab>
             <p-tab value="comparison" [disabled]="true">Confronto fornitori</p-tab>
             <p-tab value="export" [disabled]="true">Riepilogo e Export</p-tab>
           </p-tablist>
@@ -183,7 +181,6 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
           >
             <p-tablist>
               <p-tab value="import">Import</p-tab>
-              <p-tab value="products" [disabled]="orderLoading()">Tabella prodotti</p-tab>
               <p-tab value="comparison" [disabled]="orderLoading()">Confronto fornitori</p-tab>
               <p-tab value="export" [disabled]="orderLoading()">Riepilogo e Export</p-tab>
             </p-tablist>
@@ -198,26 +195,24 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                   [orderFileImporting]="orderFileImporting()"
                   [orderFileMessage]="orderFileMessage()"
                   [supplierUploadState]="supplierUploadState()"
+                  [pendingSupplierDraftState]="pendingSupplierDraftState()"
                   [supplierPreviewState]="supplierPreviewState()"
                   [supplierCreating]="supplierCreating()"
+                  [supplierComparisonLoading]="supplierComparisonLoading()"
+                  [hasSupplierUploads]="hasSupplierUploads()"
                   (orderFileSelected)="onOrderFileSelected($event)"
                   (orderImportConfirmed)="onOrderImportConfirmed($event)"
+                  (supplierDraftFileSelected)="onSupplierDraftFileSelected($event)"
                   (supplierFileSelected)="onSupplierFileSelected($event)"
                   (supplierMappingConfirmed)="onSupplierMappingConfirmed($event)"
-                  (supplierCreateRequested)="onSupplierCreateRequested($event)"
-                />
-              </p-tabpanel>
-
-              <p-tabpanel value="products">
-                <app-order-products-tab
-                  [items]="currentOrder.items"
-                  [reviewItems]="currentOrder.reviewItems"
+                  (supplierComparisonRequested)="loadSupplierComparison()"
                 />
               </p-tabpanel>
 
               <p-tabpanel value="comparison">
                 <app-supplier-comparison-tab
                   [rows]="supplierComparisonRows()"
+                  [orderItems]="currentOrder.items"
                   [loading]="supplierComparisonLoading()"
                   [requested]="supplierComparisonRequested()"
                   [error]="supplierComparisonError()"
@@ -263,6 +258,14 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
       }
     }
   `,
+  styles: [
+    `
+      :host ::ng-deep .p-tabpanels {
+        background: transparent;
+        padding: 0;
+      }
+    `
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OrderDetailPageComponent {
@@ -291,7 +294,7 @@ export class OrderDetailPageComponent {
   private readonly ordersStore = inject(OrdersSessionStore);
   private readonly ordersService = inject(OrdersService);
 
-  readonly activeTab = signal<'import' | 'products' | 'comparison' | 'export'>('import');
+  readonly activeTab = signal<'import' | 'comparison' | 'export'>('import');
   readonly orderLoading = signal(false);
   readonly orderImportPreviewState = signal<OrderImportPreviewState | null>(null);
   readonly orderFileUploading = signal(false);
@@ -305,6 +308,7 @@ export class OrderDetailPageComponent {
   readonly supplierComparisonSelections = signal<Record<string, SupplierComparisonSelection>>({});
   readonly supplierComparisonQuantities = signal<Record<string, number | null>>({});
   readonly supplierLoadingState = signal<Record<string, boolean>>({});
+  readonly pendingSupplierDraftState = signal<Record<string, UploadCardState>>({});
   readonly supplierUploadState = signal<Record<string, UploadCardState>>({});
   readonly supplierPreviewState = signal<Record<string, SupplierUploadPreviewState>>({});
   readonly supplierCreating = signal(false);
@@ -399,9 +403,6 @@ export class OrderDetailPageComponent {
       () => {
         const orderId = this.orderId();
         const currentOrder = this.order();
-        const hasUploads = this.hasSupplierUploads();
-        const hasComparisonRows = (currentOrder?.supplierComparisonRows?.length ?? 0) > 0;
-        const hasOrderItems = (currentOrder?.items?.length ?? 0) > 0;
         const comparisonRequested = this.supplierComparisonRequested();
         const comparisonLoading = this.supplierComparisonLoading();
         const autoAttempted = orderId ? this.autoComparisonAttemptedOrderIds()[orderId] ?? false : false;
@@ -410,7 +411,7 @@ export class OrderDetailPageComponent {
           return;
         }
 
-        if (!hasOrderItems || !hasUploads || hasComparisonRows) {
+        if (!this.shouldAutoLoadSupplierComparison(currentOrder)) {
           return;
         }
 
@@ -520,6 +521,64 @@ export class OrderDetailPageComponent {
     void this.previewSupplierFile(payload.supplierId, payload.file);
   }
 
+  async onSupplierDraftFileSelected(payload: {
+    draftId: string;
+    name: string;
+    file: File;
+  }): Promise<void> {
+    const orderId = this.orderId();
+    const supplierName = payload.name.trim();
+
+    if (!orderId || !supplierName) {
+      return;
+    }
+
+    this.supplierCreating.set(true);
+    this.pageError.set(null);
+    this.setPendingSupplierDraftState(payload.draftId, {
+      status: 'uploading',
+      fileName: payload.file.name,
+      message: `Creazione fornitore ${supplierName}...`,
+      updatedAt: new Date().toISOString()
+    });
+
+    try {
+      const createdSupplier = await firstValueFrom(
+        this.ordersService.createOrderSupplier(orderId, {
+          name: supplierName
+        })
+      );
+      this.upsertSupplier(orderId, createdSupplier);
+
+      this.setPendingSupplierDraftState(payload.draftId, {
+        status: 'processing',
+        fileName: payload.file.name,
+        message: `Analisi file fornitore ${payload.file.name}...`,
+        updatedAt: new Date().toISOString()
+      });
+
+      await this.previewSupplierFile(createdSupplier.id, payload.file);
+
+      this.setPendingSupplierDraftState(payload.draftId, {
+        status: 'completed',
+        fileName: payload.file.name,
+        message: `${supplierName} creato correttamente.`,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error: unknown) {
+      const message = this.toMessage(error, 'Creazione fornitore non riuscita.');
+      this.pageError.set(message);
+      this.setPendingSupplierDraftState(payload.draftId, {
+        status: 'failed',
+        fileName: payload.file.name,
+        message,
+        updatedAt: new Date().toISOString()
+      });
+    } finally {
+      this.supplierCreating.set(false);
+    }
+  }
+
   async onSupplierMappingConfirmed(payload: {
     supplierId: string;
     file: File;
@@ -545,22 +604,7 @@ export class OrderDetailPageComponent {
       const createdSupplier = await firstValueFrom(
         this.ordersService.createOrderSupplier(orderId, payload)
       );
-      const currentOrder = this.order();
-      const nextSuppliers = [
-        ...(currentOrder?.suppliers ?? []).filter((supplier) => supplier.id !== createdSupplier.id),
-        createdSupplier
-      ].sort((left, right) => left.name.localeCompare(right.name));
-      this.ordersStore.upsertOrder({
-        ...(currentOrder ?? {
-          id: orderId,
-          status: 'draft',
-          createdAt: new Date().toISOString(),
-          items: [],
-          reviewItems: [],
-          supplierUploads: {}
-        }),
-        suppliers: nextSuppliers
-      });
+      this.upsertSupplier(orderId, createdSupplier);
     } catch (error: unknown) {
       this.pageError.set(this.toMessage(error, 'Creazione fornitore non riuscita.'));
     } finally {
@@ -616,6 +660,9 @@ export class OrderDetailPageComponent {
       if (options?.persistMapping) {
         const refreshedOrder = await firstValueFrom(this.ordersService.getOrderById(orderId));
         this.ordersStore.upsertOrder(refreshedOrder.order);
+        if (response.products.length > 0) {
+          this.ordersStore.appendSupplierUpload(orderId, response);
+        }
         this.supplierComparisonRequested.set(false);
         this.supplierComparisonError.set(null);
         this.ordersStore.setSupplierComparisonRows(orderId, []);
@@ -699,7 +746,6 @@ export class OrderDetailPageComponent {
 
     if (
       value === 'import' ||
-      value === 'products' ||
       value === 'comparison' ||
       value === 'export'
     ) {
@@ -769,7 +815,17 @@ export class OrderDetailPageComponent {
 
     try {
       const response = await firstValueFrom(this.ordersService.getOrderById(orderId));
+      const shouldAutoLoadComparison = this.shouldAutoLoadSupplierComparison(response.order);
+
+      if (shouldAutoLoadComparison) {
+        this.markAutoComparisonAsAttempted(orderId);
+      }
+
       this.ordersStore.upsertOrder(response.order);
+
+      if (shouldAutoLoadComparison) {
+        await this.autoLoadSupplierComparison(orderId);
+      }
     } catch (error: unknown) {
       this.pageError.set(this.toMessage(error, 'Non sono riuscito a caricare l\'ordine.'));
     } finally {
@@ -789,6 +845,17 @@ export class OrderDetailPageComponent {
       ...state,
       [orderId]: true
     }));
+  }
+
+  private shouldAutoLoadSupplierComparison(order: SessionOrder | null | undefined): boolean {
+    if (!order) {
+      return false;
+    }
+
+    const hasUploads = Object.values(order.supplierUploads ?? {}).some((uploads) => uploads.length > 0);
+    const hasComparisonRows = (order.supplierComparisonRows?.length ?? 0) > 0;
+
+    return hasUploads && !hasComparisonRows;
   }
 
   private buildOrderExportSummaryRows(): OrderExportSummaryRow[] {
@@ -944,6 +1011,33 @@ export class OrderDetailPageComponent {
     });
   }
 
+  private setPendingSupplierDraftState(draftId: string, state: UploadCardState): void {
+    this.pendingSupplierDraftState.update((currentState) => ({
+      ...currentState,
+      [draftId]: state
+    }));
+  }
+
+  private upsertSupplier(orderId: string, supplier: SupplierDefinition): void {
+    const currentOrder = this.order();
+    const nextSuppliers = [
+      ...(currentOrder?.suppliers ?? []).filter((currentSupplier) => currentSupplier.id !== supplier.id),
+      supplier
+    ].sort((left, right) => left.name.localeCompare(right.name));
+
+    this.ordersStore.upsertOrder({
+      ...(currentOrder ?? {
+        id: orderId,
+        status: 'draft',
+        createdAt: new Date().toISOString(),
+        items: [],
+        reviewItems: [],
+        supplierUploads: {}
+      }),
+      suppliers: nextSuppliers
+    });
+  }
+
   private resolveSuppliers(): SupplierDefinition[] {
     const currentOrder = this.order();
 
@@ -993,16 +1087,20 @@ export class OrderDetailPageComponent {
 
     const selections = this.supplierComparisonSelections();
     const quantityOverrides = this.supplierComparisonQuantities();
+    const orderItemsByEan = new Map(
+      currentOrder.items.map((item) => [item.ean, item] as const)
+    );
 
     return currentOrder.supplierComparisonRows
       .map((row) => {
         const manualSelection = selections[row.ean];
         const selectedOption = resolveSelectedSupplierComparisonOffer(row, manualSelection);
+        const orderItemQuantity = orderItemsByEan.get(row.ean)?.quantity ?? null;
 
         return {
           ean: row.ean,
           description: row.description,
-          quantity: quantityOverrides[row.ean] ?? row.quantity,
+          quantity: quantityOverrides[row.ean] ?? row.quantity ?? orderItemQuantity,
           bestOffer: row.bestOffer,
           selectedSupplierId: selectedOption?.supplierId ?? '',
           selectedSupplierName: selectedOption?.supplierName ?? '',
@@ -1061,7 +1159,7 @@ export class OrderDetailPageComponent {
 
   private async refreshSupplierComparison(orderId: string): Promise<void> {
     try {
-      const response = await firstValueFrom(this.ordersService.getSupplierComparison(orderId));
+      const response = await firstValueFrom(this.ordersService.getOrderCatalog(orderId));
       this.ordersStore.setSupplierComparisonRows(orderId, response.rows);
     } catch (error: unknown) {
       this.supplierComparisonError.set(
@@ -1095,7 +1193,9 @@ export class OrderDetailPageComponent {
 
     const items = this.buildPersistedOrderItemPayload();
 
-    this.ordersStore.setOrderItems(orderId, this.buildLocalDraftItems(items));
+    this.runWithScrollLock(() => {
+      this.ordersStore.setOrderItems(orderId, this.buildLocalDraftItems(items));
+    });
 
     try {
       await firstValueFrom(this.ordersService.syncOrderItems(orderId, items));
@@ -1141,6 +1241,102 @@ export class OrderDetailPageComponent {
     }
 
     return fallback;
+  }
+
+  private runWithScrollLock(action: () => void): void {
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const focusState = this.captureComparisonFocusState();
+
+    action();
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this.restoreComparisonViewport(scrollX, scrollY, focusState);
+      });
+    });
+  }
+
+  private captureComparisonFocusState():
+    | {
+        ean: string;
+        field: 'quantity' | 'supplier';
+        selectionStart: number | null;
+        selectionEnd: number | null;
+      }
+    | null {
+    const activeElement = document.activeElement;
+
+    if (
+      !(activeElement instanceof HTMLInputElement) &&
+      !(activeElement instanceof HTMLSelectElement)
+    ) {
+      return null;
+    }
+
+    const ean = activeElement.dataset['comparisonEan']?.trim();
+    const field = activeElement.dataset['comparisonField'];
+
+    if (!ean || (field !== 'quantity' && field !== 'supplier')) {
+      return null;
+    }
+
+    return {
+      ean,
+      field,
+      selectionStart:
+        activeElement instanceof HTMLInputElement ? activeElement.selectionStart : null,
+      selectionEnd: activeElement instanceof HTMLInputElement ? activeElement.selectionEnd : null
+    };
+  }
+
+  private restoreComparisonViewport(
+    scrollX: number,
+    scrollY: number,
+    focusState:
+      | {
+          ean: string;
+          field: 'quantity' | 'supplier';
+          selectionStart: number | null;
+          selectionEnd: number | null;
+        }
+      | null
+  ): void {
+    window.scrollTo({
+      left: scrollX,
+      top: scrollY,
+      behavior: 'auto'
+    });
+
+    if (!focusState) {
+      return;
+    }
+
+    const selector = `[data-comparison-field="${focusState.field}"][data-comparison-ean="${CSS.escape(focusState.ean)}"]`;
+    const target = document.querySelector(selector);
+
+    if (
+      !(target instanceof HTMLInputElement) &&
+      !(target instanceof HTMLSelectElement)
+    ) {
+      return;
+    }
+
+    target.focus({ preventScroll: true });
+
+    if (
+      target instanceof HTMLInputElement &&
+      focusState.selectionStart !== null &&
+      focusState.selectionEnd !== null
+    ) {
+      target.setSelectionRange(focusState.selectionStart, focusState.selectionEnd);
+    }
+
+    window.scrollTo({
+      left: scrollX,
+      top: scrollY,
+      behavior: 'auto'
+    });
   }
 }
 

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output, signal } f
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 
+import { OrderItem } from '../../../models/order.models';
 import { SupplierComparisonTableRow } from './order-detail-view.models';
 import {
   formatPrice,
@@ -16,28 +17,62 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
   standalone: true,
   imports: [ButtonModule, TableModule],
   template: `
-    <section class="surface-panel p-8">
-      <p class="section-eyebrow">1. Confronto prodotti</p>
-      <h2 class="section-title">Confronto prodotti fornitori</h2>
-      <p class="section-copy">
-        Ogni riga rappresenta un EAN trovato nei listini caricati. Puoi scegliere il
-        fornitore più conveniente o quello più adatto.
-      </p>
+    <section class="surface-panel p-6 md:p-7">
+      <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div class="min-w-0">
+          <p class="section-eyebrow">1. Confronto prodotti</p>
+          <h2 class="section-title">Confronto prodotti fornitori</h2>
+          <p class="section-copy">
+            Ogni riga rappresenta un EAN trovato nei listini caricati. Puoi scegliere il
+            fornitore più conveniente o quello più adatto.
+          </p>
+        </div>
 
-      <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <button
-          pButton
-          type="button"
-          class="btn-primary justify-center !rounded-2xl !px-5 !py-3 !text-sm !font-semibold"
-          [disabled]="!hasSupplierUploads() || loading()"
-          (click)="loadRequested.emit()"
-        >
-          {{ loading() ? 'Confronto in corso...' : 'Confronta fornitori' }}
-        </button>
+        <div class="flex justify-start lg:justify-end">
+          <button
+            pButton
+            type="button"
+            class="app-primary-action min-w-52 justify-center !rounded-2xl !px-5 !py-3 !text-sm !font-semibold"
+            [disabled]="!hasSupplierUploads() || loading()"
+            (click)="loadRequested.emit()"
+          >
+            {{ loading() ? 'Confronto in corso...' : 'Confronta fornitori' }}
+          </button>
+        </div>
+      </div>
 
-        @if (loading()) {
-          <p class="text-sm text-[var(--app-text-muted)]">Confronto fornitori in corso...</p>
-        }
+      <div class="mt-6 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="px-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-text-muted)]">
+              Vista
+            </span>
+            <button
+              type="button"
+              class="rounded-full px-4 py-2 text-sm font-semibold transition"
+              [class]="catalogViewMode() === 'all'
+                ? 'bg-[var(--brand-primary)] text-white shadow-sm'
+                : 'border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]'"
+              (click)="setCatalogViewMode('all')"
+            >
+              Tutto il catalogo
+            </button>
+            <button
+              type="button"
+              class="rounded-full px-4 py-2 text-sm font-semibold transition"
+              [class]="catalogViewMode() === 'ordered'
+                ? 'bg-[var(--brand-primary)] text-white shadow-sm'
+                : 'border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]'"
+              (click)="setCatalogViewMode('ordered')"
+            >
+              Prodotti ordinati
+            </button>
+          </div>
+
+          @if (loading()) {
+            <p class="text-sm text-[var(--app-text-muted)]">Confronto fornitori in corso...</p>
+          }
+        </div>
       </div>
 
       <div class="mt-4">
@@ -60,13 +95,18 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         <p class="mt-6 rounded-2xl border border-dashed border-[var(--app-border-strong)] bg-[var(--app-surface-muted)] px-4 py-4 text-sm text-[var(--app-text-muted)]">
           Carica i file fornitori, poi clicca Confronta per visualizzare la tabella prezzi.
         </p>
-      } @else if (filteredRows().length === 0 && !loading()) {
+      } @else if (visibleRows().length === 0 && !loading()) {
         <p class="mt-6 rounded-2xl border border-dashed border-[var(--app-border-strong)] bg-[var(--app-surface-muted)] px-4 py-4 text-sm text-[var(--app-text-muted)]">
-          Non sono stati trovati prodotti confrontabili nei file caricati.
+          {{ emptyStateMessage() }}
         </p>
       } @else {
         <div class="mt-6 overflow-hidden rounded-2xl border border-[var(--app-border)]">
-          <p-table [value]="paginatedRows()" responsiveLayout="scroll">
+          <p-table
+            [value]="paginatedRows()"
+            dataKey="ean"
+            [rowTrackBy]="trackByEan"
+            responsiveLayout="scroll"
+          >
             <ng-template pTemplate="header">
               <tr>
                 <th>EAN</th>
@@ -87,6 +127,8 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                     step="1"
                     placeholder="0"
                     class="app-input w-full rounded-xl px-3 py-2"
+                    data-comparison-field="quantity"
+                    [attr.data-comparison-ean]="row.ean"
                     [value]="row.quantity ?? ''"
                     (input)="onQuantityChange(row.ean, $event)"
                   />
@@ -103,6 +145,8 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                   <div class="flex flex-col gap-2">
                     <select
                       class="app-input w-full rounded-xl px-3 py-2"
+                      data-comparison-field="supplier"
+                      [attr.data-comparison-ean]="row.ean"
                       [value]="row.selectedSupplierId"
                       [disabled]="row.availableSuppliers.length === 0"
                       (change)="onSelectionChange(row.ean, $event)"
@@ -164,6 +208,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
 })
 export class SupplierComparisonTabComponent {
   readonly rows = input<SupplierComparisonTableRow[]>([]);
+  readonly orderItems = input<OrderItem[]>([]);
   readonly loading = input(false);
   readonly requested = input(false);
   readonly error = input<string | null>(null);
@@ -174,7 +219,16 @@ export class SupplierComparisonTabComponent {
   readonly quantityChanged = output<{ ean: string; quantity: number | null }>();
 
   readonly searchTerm = signal('');
+  readonly catalogViewMode = signal<'all' | 'ordered'>('all');
   readonly currentPage = signal(1);
+  readonly orderedEans = computed(
+    () =>
+      new Set(
+        this.orderItems()
+          .map((item) => item.ean.trim())
+          .filter((ean) => ean.length > 0)
+      )
+  );
 
   readonly filteredRows = computed(() => {
     const normalizedSearch = this.searchTerm().trim().toLowerCase();
@@ -194,8 +248,17 @@ export class SupplierComparisonTabComponent {
     });
   });
 
+  readonly visibleRows = computed(() => {
+    if (this.catalogViewMode() === 'all') {
+      return this.filteredRows();
+    }
+
+    const orderedEans = this.orderedEans();
+    return this.filteredRows().filter((row) => orderedEans.has(row.ean));
+  });
+
   readonly totalPages = computed(() =>
-    Math.max(1, Math.ceil(this.filteredRows().length / SUPPLIER_COMPARISON_PAGE_SIZE))
+    Math.max(1, Math.ceil(this.visibleRows().length / SUPPLIER_COMPARISON_PAGE_SIZE))
   );
 
   readonly displayPage = computed(() =>
@@ -205,11 +268,11 @@ export class SupplierComparisonTabComponent {
   readonly paginatedRows = computed(() => {
     const startIndex = (this.displayPage() - 1) * SUPPLIER_COMPARISON_PAGE_SIZE;
 
-    return this.filteredRows().slice(startIndex, startIndex + SUPPLIER_COMPARISON_PAGE_SIZE);
+    return this.visibleRows().slice(startIndex, startIndex + SUPPLIER_COMPARISON_PAGE_SIZE);
   });
 
   readonly rangeLabel = computed(() => {
-    const total = this.filteredRows().length;
+    const total = this.visibleRows().length;
 
     if (total === 0) {
       return 'Mostrati 0-0 di 0 prodotti';
@@ -221,9 +284,21 @@ export class SupplierComparisonTabComponent {
     return `Mostrati ${start}-${end} di ${total} prodotti`;
   });
 
+  readonly emptyStateMessage = computed(() =>
+    this.catalogViewMode() === 'ordered'
+      ? 'Nessun prodotto ordinato è presente nel catalogo fornitori filtrato.'
+      : 'Non sono stati trovati prodotti confrontabili nei file caricati.'
+  );
+
   readonly formatPrice = formatPrice;
   readonly formatSupplierOption = formatSupplierOption;
   readonly supplierAvailabilityLabel = supplierAvailabilityLabel;
+  readonly trackByEan = (_index: number, row: SupplierComparisonTableRow) => row.ean;
+
+  setCatalogViewMode(mode: 'all' | 'ordered'): void {
+    this.catalogViewMode.set(mode);
+    this.currentPage.set(1);
+  }
 
   onSearchChange(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
