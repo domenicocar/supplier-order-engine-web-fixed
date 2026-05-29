@@ -11,6 +11,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription, firstValueFrom, map, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
+import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { TabsModule } from 'primeng/tabs';
 
@@ -19,6 +20,7 @@ import {
   OrderFilePreviewResult,
   OrderImportColumnMapping,
   OrderItem,
+  ProductMappingResponse,
   ReviewItem,
   SessionOrder,
   SupplierColumnMapping,
@@ -42,6 +44,7 @@ import {
   calculateRoundedLineTotal,
   resolveSelectedSupplierComparisonOffer,
   roundToCents,
+  supplierAvailabilityLabel,
   sumRoundedCurrency
 } from '../components/order-detail-view.utils';
 import { OrderImportTabComponent } from '../components/order-import-tab.component';
@@ -51,6 +54,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
   selector: 'app-order-detail-page',
   standalone: true,
   imports: [
+    ButtonModule,
     OrderExportTabComponent,
     OrderImportTabComponent,
     RouterLink,
@@ -259,6 +263,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                   [exportResult]="currentOrder.exportResult"
                   (exportRequested)="generateExport()"
                   (closeRequested)="closeOrder()"
+                  (associateToCatalogRequested)="onAssociateToCatalogRequested($event)"
                 />
               </p-tabpanel>
             </p-tabpanels>
@@ -307,6 +312,147 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                 </button>
               </div>
             </div>
+          </p-dialog>
+
+          <p-dialog
+            [visible]="catalogAssociationDialogVisible()"
+            (visibleChange)="onCatalogAssociationDialogVisibilityChange($event)"
+            [modal]="true"
+            [draggable]="false"
+            [resizable]="false"
+            [dismissableMask]="!catalogAssociationSaving()"
+            [style]="{ width: 'min(920px, 96vw)' }"
+            header="Associa prodotto a catalogo"
+          >
+            @if (catalogAssociationSourceRow(); as sourceRow) {
+              <div class="flex flex-col gap-5">
+                <div class="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-4">
+                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-text-muted)]">
+                    Prodotto ordine
+                  </p>
+                  <div class="mt-3 grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                    <div>
+                      <p class="text-xs text-[var(--app-text-muted)]">EAN</p>
+                      <p class="text-sm font-semibold text-[var(--app-text)]">
+                        {{ sourceRow.ean }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-[var(--app-text-muted)]">Descrizione</p>
+                      <p class="text-sm text-[var(--app-text)]">
+                        {{ sourceRow.description }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div class="w-full lg:max-w-xl">
+                    <label
+                      for="catalog-association-search"
+                      class="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--app-text-muted)]"
+                    >
+                      Cerca nel catalogo
+                    </label>
+                    <input
+                      id="catalog-association-search"
+                      type="search"
+                      class="app-input w-full"
+                      placeholder="Cerca per EAN o descrizione..."
+                      [value]="catalogAssociationQuery()"
+                      (input)="onCatalogAssociationSearchInput($event)"
+                    />
+                  </div>
+
+                  <p class="text-sm text-[var(--app-text-muted)]">
+                    {{ catalogAssociationResultsCountLabel() }}
+                  </p>
+                </div>
+
+                @if (catalogAssociationError()) {
+                  <div class="app-alert-error">
+                    {{ catalogAssociationError() }}
+                  </div>
+                }
+
+                @if (catalogAssociationLoading()) {
+                  <p class="rounded-2xl border border-dashed border-[var(--app-border-strong)] bg-[var(--app-surface-muted)] px-4 py-4 text-sm text-[var(--app-text-muted)]">
+                    Ricerca catalogo in corso...
+                  </p>
+                } @else if (catalogAssociationResults().length === 0) {
+                  <p class="rounded-2xl border border-dashed border-[var(--app-border-strong)] bg-[var(--app-surface-muted)] px-4 py-4 text-sm text-[var(--app-text-muted)]">
+                    Nessun prodotto trovato nel catalogo per la ricerca corrente.
+                  </p>
+                } @else {
+                  <div class="overflow-hidden rounded-2xl border border-[var(--app-border)]">
+                    <div class="max-h-[420px] overflow-auto">
+                      <table class="min-w-full border-separate border-spacing-0">
+                        <thead class="bg-[var(--app-surface-muted)]">
+                          <tr>
+                            <th class="px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--app-text-muted)]">
+                              EAN
+                            </th>
+                            <th class="px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--app-text-muted)]">
+                              Descrizione
+                            </th>
+                            <th class="px-4 py-3 text-left text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--app-text-muted)]">
+                              Disponibilita
+                            </th>
+                            <th class="px-4 py-3 text-right text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-[var(--app-text-muted)]">
+                              Azione
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (candidate of catalogAssociationResults(); track candidate.ean) {
+                            <tr class="transition hover:bg-[rgba(148,163,184,0.04)]">
+                              <td class="border-t border-[rgba(148,163,184,0.14)] px-4 py-4 align-top text-sm font-semibold text-[var(--app-text)]">
+                                {{ candidate.ean }}
+                              </td>
+                              <td class="border-t border-[rgba(148,163,184,0.14)] px-4 py-4 align-top text-sm text-[var(--app-text)]">
+                                {{ candidate.description }}
+                              </td>
+                              <td class="border-t border-[rgba(148,163,184,0.14)] px-4 py-4 align-top text-sm text-[var(--app-text-muted)]">
+                                {{
+                                  candidate.availableSuppliers.length > 0
+                                    ? supplierAvailabilityLabel(candidate.availableSuppliers.length)
+                                    : 'Prodotto di catalogo senza offerte caricate'
+                                }}
+                              </td>
+                              <td class="border-t border-[rgba(148,163,184,0.14)] px-4 py-4 text-right align-top">
+                                <button
+                                  type="button"
+                                  class="btn-primary inline-flex justify-center !rounded-2xl !px-4 !py-2.5 !text-sm !font-semibold"
+                                  [disabled]="catalogAssociationSaving()"
+                                  (click)="confirmCatalogAssociation(candidate)"
+                                >
+                                  {{
+                                    catalogAssociationSaving()
+                                      ? 'Salvataggio...'
+                                      : 'Associa questo prodotto'
+                                  }}
+                                </button>
+                              </td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                }
+
+                <div class="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    class="btn-secondary justify-center !rounded-2xl !px-4 !py-2.5 !text-sm !font-semibold"
+                    [disabled]="catalogAssociationSaving()"
+                    (click)="closeCatalogAssociationDialog()"
+                  >
+                    Chiudi
+                  </button>
+                </div>
+              </div>
+            }
           </p-dialog>
         </section>
       } @else {
@@ -361,6 +507,8 @@ export class OrderDetailPageComponent {
     maximumFractionDigits: 0
   });
   private draftSyncTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private catalogSearchTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private catalogSearchRequestSequence = 0;
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly ordersStore = inject(OrdersSessionStore);
@@ -375,6 +523,13 @@ export class OrderDetailPageComponent {
   readonly exporting = signal(false);
   readonly closing = signal(false);
   readonly closeDialogVisible = signal(false);
+  readonly catalogAssociationDialogVisible = signal(false);
+  readonly catalogAssociationSourceRow = signal<OrderExportSummaryRow | null>(null);
+  readonly catalogAssociationQuery = signal('');
+  readonly catalogAssociationResults = signal<SupplierComparisonRow[]>([]);
+  readonly catalogAssociationLoading = signal(false);
+  readonly catalogAssociationSaving = signal(false);
+  readonly catalogAssociationError = signal<string | null>(null);
   readonly pageError = signal<string | null>(null);
   readonly pageNotice = signal<string | null>(null);
   readonly supplierComparisonRequested = signal(false);
@@ -389,6 +544,7 @@ export class OrderDetailPageComponent {
   readonly supplierCreating = signal(false);
   readonly fetchedOrderIds = signal<Record<string, boolean>>({});
   readonly autoComparisonAttemptedOrderIds = signal<Record<string, boolean>>({});
+  readonly supplierAvailabilityLabel = supplierAvailabilityLabel;
 
   orderDisplayLabel(createdAt: string): string {
     const date = this.parseDate(createdAt);
@@ -459,6 +615,7 @@ export class OrderDetailPageComponent {
   constructor() {
     this.destroyRef.onDestroy(() => {
       this.clearDraftSyncTimeout();
+      this.clearCatalogSearchTimeout();
     });
 
     effect(
@@ -1065,6 +1222,121 @@ export class OrderDetailPageComponent {
     }
   }
 
+  onAssociateToCatalogRequested(item: OrderExportSummaryRow): void {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
+    this.catalogAssociationSourceRow.set(item);
+    this.catalogAssociationDialogVisible.set(true);
+    this.catalogAssociationQuery.set('');
+    this.catalogAssociationResults.set([]);
+    this.catalogAssociationError.set(null);
+    this.catalogAssociationLoading.set(false);
+    this.catalogAssociationSaving.set(false);
+
+    const cachedCatalogRows = this.getCachedCatalogRows();
+
+    if (cachedCatalogRows.length > 0) {
+      this.catalogAssociationResults.set(this.deduplicateCatalogRows(cachedCatalogRows));
+      return;
+    }
+
+    void this.loadCatalogAssociationResults('');
+  }
+
+  onCatalogAssociationDialogVisibilityChange(visible: boolean): void {
+    if (!visible) {
+      this.closeCatalogAssociationDialog();
+    }
+  }
+
+  closeCatalogAssociationDialog(): void {
+    this.clearCatalogSearchTimeout();
+    this.catalogSearchRequestSequence += 1;
+    this.catalogAssociationDialogVisible.set(false);
+    this.catalogAssociationSourceRow.set(null);
+    this.catalogAssociationQuery.set('');
+    this.catalogAssociationResults.set([]);
+    this.catalogAssociationLoading.set(false);
+    this.catalogAssociationError.set(null);
+    this.catalogAssociationSaving.set(false);
+  }
+
+  onCatalogAssociationSearchInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.catalogAssociationQuery.set(value);
+    this.scheduleCatalogSearch();
+  }
+
+  catalogAssociationResultsCountLabel(): string {
+    if (this.catalogAssociationLoading()) {
+      return 'Ricerca in corso...';
+    }
+
+    const count = this.catalogAssociationResults().length;
+    const query = this.catalogAssociationQuery().trim();
+
+    if (query.length > 0) {
+      return `${count} risultati per "${query}"`;
+    }
+
+    return `${count} prodotti disponibili nel catalogo`;
+  }
+
+  async confirmCatalogAssociation(candidate: SupplierComparisonRow): Promise<void> {
+    const orderId = this.orderId();
+    const sourceRow = this.catalogAssociationSourceRow();
+
+    if (!orderId || !sourceRow) {
+      return;
+    }
+
+    this.catalogAssociationSaving.set(true);
+    this.catalogAssociationError.set(null);
+    this.pageError.set(null);
+
+    try {
+      const mapping = await firstValueFrom(
+        this.ordersService.createProductMapping(orderId, {
+          sourceEan: sourceRow.ean,
+          sourceDescription: sourceRow.description,
+          targetEan: candidate.ean
+        })
+      );
+
+      this.upsertProductMapping(orderId, mapping);
+
+      this.closeCatalogAssociationDialog();
+
+      const orderReloaded = await this.reloadOrderSnapshot(orderId);
+      const catalogReloaded = await this.refreshSupplierComparison(
+        orderId,
+        'Associazione salvata, ma non sono riuscito ad aggiornare il catalogo.'
+      );
+
+      this.activeTab.set('export');
+
+      if (orderReloaded && catalogReloaded) {
+        this.pageNotice.set(`Associazione a catalogo salvata per il prodotto ${sourceRow.ean}.`);
+      } else if (orderReloaded) {
+        this.pageNotice.set(
+          `Associazione salvata per ${sourceRow.ean}. Il catalogo non si e aggiornato completamente.`
+        );
+      } else {
+        this.pageNotice.set(
+          `Associazione salvata per ${sourceRow.ean}, ma il dettaglio ordine non e stato ricaricato.`
+        );
+      }
+    } catch (error: unknown) {
+      this.catalogAssociationError.set(
+        this.toMessage(error, 'Associazione prodotto a catalogo non riuscita.')
+      );
+    } finally {
+      this.catalogAssociationSaving.set(false);
+    }
+  }
+
   private async loadOrder(orderId: string): Promise<void> {
     this.orderLoading.set(true);
     this.pageError.set(null);
@@ -1371,16 +1643,16 @@ export class OrderDetailPageComponent {
 
     const selections = this.supplierComparisonSelections();
     const quantityOverrides = this.supplierComparisonQuantities();
-    const comparisonRowsByEan = new Map(
-      comparisonSourceRows.map((row) => [row.ean, row] as const)
-    );
-    const currentOrderEans = new Set(
-      currentOrder.items.map((item) => item.ean.trim()).filter((ean) => ean.length > 0)
-    );
+    const comparisonRowsByLookupKey = this.buildComparisonRowLookup(comparisonSourceRows);
+    const mappedTargetBySourceEan = this.buildProductMappingLookup(currentOrder);
 
     const orderRows = currentOrder.items.map((item, index) => {
       const lineId = this.resolveOrderItemLineId(item, index);
-      const comparisonRow = comparisonRowsByEan.get(item.ean);
+      const comparisonRow = this.findComparisonRowForOrderItem(
+        item,
+        comparisonRowsByLookupKey,
+        mappedTargetBySourceEan
+      );
       const manualSelection = selections[lineId];
       const selectedOption = comparisonRow
         ? resolveSelectedSupplierComparisonOffer(
@@ -1408,17 +1680,26 @@ export class OrderDetailPageComponent {
         manualSelection?.selectedPrice ?? selectedOption?.netPrice ?? selectedOption?.price ?? null;
       const selectedPackageSize =
         manualSelection?.selectedPackageSize ?? selectedOption?.packageSize ?? 1;
+      const effectiveEan = comparisonRow?.ean ?? this.resolveMappedTargetEan(item, mappedTargetBySourceEan) ?? item.ean;
+      const preferredDescription =
+        comparisonRow && effectiveEan !== item.ean
+          ? comparisonRow.description
+          : item.description ?? comparisonRow?.description;
+      const comparisonDescription =
+        comparisonRow && effectiveEan !== item.ean
+          ? item.description
+          : comparisonRow?.description;
 
       return {
         lineId,
         lineType: 'order' as const,
-        ean: item.ean,
+        ean: effectiveEan,
         description: this.resolveLineDescription(
           currentOrder,
           item.ean,
-          item.description ?? comparisonRow?.description,
+          preferredDescription,
           index,
-          comparisonRow?.description
+          comparisonDescription
         ),
         quantity: quantityOverrides[lineId] ?? item.quantity,
         bestOffer: comparisonRow?.bestOffer ?? null,
@@ -1456,6 +1737,104 @@ export class OrderDetailPageComponent {
       });
 
     return [...orderRows, ...catalogRows];
+  }
+
+  private buildComparisonRowLookup(
+    rows: SupplierComparisonRow[]
+  ): Map<string, SupplierComparisonRow> {
+    const lookup = new Map<string, SupplierComparisonRow>();
+
+    for (const row of rows) {
+      const ean = row.ean.trim();
+
+      if (ean) {
+        lookup.set(ean, row);
+      }
+
+      const sourceEan = row.sourceEan?.trim();
+
+      if (sourceEan) {
+        lookup.set(sourceEan, row);
+      }
+    }
+
+    return lookup;
+  }
+
+  private buildProductMappingLookup(order: SessionOrder): Map<string, string> {
+    const lookup = new Map<string, string>();
+
+    for (const mapping of order.productMappings ?? []) {
+      const sourceEan = mapping.sourceEan.trim();
+      const targetEan = mapping.targetEan.trim();
+
+      if (!sourceEan || !targetEan) {
+        continue;
+      }
+
+      lookup.set(sourceEan, targetEan);
+    }
+
+    return lookup;
+  }
+
+  private findComparisonRowForOrderItem(
+    item: OrderItem,
+    lookup: Map<string, SupplierComparisonRow>,
+    mappedTargetBySourceEan: Map<string, string>
+  ): SupplierComparisonRow | undefined {
+    for (const key of this.resolveComparisonLookupKeys(item, mappedTargetBySourceEan)) {
+      const row = lookup.get(key);
+
+      if (row) {
+        return row;
+      }
+    }
+
+    return undefined;
+  }
+
+  private resolveComparisonLookupKeys(
+    item: OrderItem,
+    mappedTargetBySourceEan: Map<string, string>
+  ): string[] {
+    const keys = [
+      item.targetEan,
+      item.catalogEan,
+      item.mappedEan,
+      item.sourceEan ? mappedTargetBySourceEan.get(item.sourceEan) : undefined,
+      mappedTargetBySourceEan.get(item.ean),
+      item.sourceEan,
+      item.ean
+    ];
+
+    return keys.flatMap((key) => {
+      const normalizedKey = key?.trim();
+      return normalizedKey ? [normalizedKey] : [];
+    }).filter((key, index, collection) => collection.indexOf(key) === index);
+  }
+
+  private resolveMappedTargetEan(
+    item: OrderItem,
+    mappedTargetBySourceEan: Map<string, string>
+  ): string | null {
+    const candidates = [
+      item.targetEan,
+      item.catalogEan,
+      item.mappedEan,
+      item.sourceEan ? mappedTargetBySourceEan.get(item.sourceEan) : undefined,
+      mappedTargetBySourceEan.get(item.ean)
+    ];
+
+    for (const candidate of candidates) {
+      const normalizedCandidate = candidate?.trim();
+
+      if (normalizedCandidate) {
+        return normalizedCandidate;
+      }
+    }
+
+    return null;
   }
 
   private resolveLineDescription(
@@ -1520,6 +1899,29 @@ export class OrderDetailPageComponent {
     return `line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
+  private upsertProductMapping(orderId: string, mapping: ProductMappingResponse): void {
+    const currentOrder = this.order();
+    const currentMappings = currentOrder?.productMappings ?? [];
+    const nextMappings = [
+      ...currentMappings.filter(
+        (currentMapping) => currentMapping.sourceEan !== mapping.sourceEan
+      ),
+      mapping
+    ];
+
+    this.ordersStore.upsertOrder({
+      ...(currentOrder ?? {
+        id: orderId,
+        status: 'draft',
+        createdAt: new Date().toISOString(),
+        items: [],
+        reviewItems: [],
+        supplierUploads: {}
+      }),
+      productMappings: nextMappings
+    });
+  }
+
   private scheduleDraftSync(): void {
     this.clearDraftSyncTimeout();
     this.draftSyncTimeoutId = setTimeout(() => {
@@ -1535,6 +1937,23 @@ export class OrderDetailPageComponent {
 
     clearTimeout(this.draftSyncTimeoutId);
     this.draftSyncTimeoutId = null;
+  }
+
+  private scheduleCatalogSearch(): void {
+    this.clearCatalogSearchTimeout();
+    this.catalogSearchTimeoutId = setTimeout(() => {
+      this.catalogSearchTimeoutId = null;
+      void this.loadCatalogAssociationResults(this.catalogAssociationQuery());
+    }, 250);
+  }
+
+  private clearCatalogSearchTimeout(): void {
+    if (this.catalogSearchTimeoutId === null) {
+      return;
+    }
+
+    clearTimeout(this.catalogSearchTimeoutId);
+    this.catalogSearchTimeoutId = null;
   }
 
   private async refreshOrderAfterGenericImport(
@@ -1565,14 +1984,20 @@ export class OrderDetailPageComponent {
     }
   }
 
-  private async refreshSupplierComparison(orderId: string): Promise<void> {
+  private async refreshSupplierComparison(
+    orderId: string,
+    fallbackMessage = 'Non sono riuscito a caricare il confronto fornitori.'
+  ): Promise<boolean> {
     try {
       const response = await firstValueFrom(this.ordersService.getOrderCatalog(orderId));
       this.ordersStore.setSupplierComparisonRows(orderId, response.rows);
+      this.supplierComparisonRequested.set(true);
+      return true;
     } catch (error: unknown) {
       this.supplierComparisonError.set(
-        this.toMessage(error, 'Non sono riuscito a caricare il confronto fornitori.')
+        this.toMessage(error, fallbackMessage)
       );
+      return false;
     }
   }
 
@@ -1590,6 +2015,91 @@ export class OrderDetailPageComponent {
     } finally {
       this.supplierComparisonLoading.set(false);
     }
+  }
+
+  private async loadCatalogAssociationResults(query: string): Promise<void> {
+    const orderId = this.orderId();
+
+    if (!orderId || !this.catalogAssociationDialogVisible()) {
+      return;
+    }
+
+    const normalizedQuery = query.trim();
+    const cachedCatalogRows = this.getCachedCatalogRows();
+
+    if (normalizedQuery.length === 0 && cachedCatalogRows.length > 0) {
+      this.catalogAssociationLoading.set(false);
+      this.catalogAssociationError.set(null);
+      this.catalogAssociationResults.set(this.deduplicateCatalogRows(cachedCatalogRows));
+      return;
+    }
+
+    const requestSequence = ++this.catalogSearchRequestSequence;
+    this.catalogAssociationLoading.set(true);
+    this.catalogAssociationError.set(null);
+
+    try {
+      const response = await firstValueFrom(
+        normalizedQuery.length > 0
+          ? this.ordersService.searchOrderCatalog(orderId, normalizedQuery)
+          : this.ordersService.getOrderCatalog(orderId)
+      );
+
+      if (requestSequence !== this.catalogSearchRequestSequence) {
+        return;
+      }
+
+      this.catalogAssociationResults.set(this.deduplicateCatalogRows(response.rows));
+    } catch (error: unknown) {
+      if (requestSequence !== this.catalogSearchRequestSequence) {
+        return;
+      }
+
+      this.catalogAssociationResults.set([]);
+      this.catalogAssociationError.set(
+        this.toMessage(error, 'Non sono riuscito a cercare nel catalogo.')
+      );
+    } finally {
+      if (requestSequence === this.catalogSearchRequestSequence) {
+        this.catalogAssociationLoading.set(false);
+      }
+    }
+  }
+
+  private async reloadOrderSnapshot(orderId: string): Promise<boolean> {
+    try {
+      const response = await firstValueFrom(this.ordersService.getOrderById(orderId));
+      this.ordersStore.upsertOrder(response.order);
+      return true;
+    } catch (error: unknown) {
+      this.pageError.set(
+        this.toMessage(
+          error,
+          'Associazione salvata, ma non sono riuscito a ricaricare il dettaglio ordine.'
+        )
+      );
+      return false;
+    }
+  }
+
+  private getCachedCatalogRows(): SupplierComparisonRow[] {
+    return this.order()?.supplierComparisonRows ?? [];
+  }
+
+  private deduplicateCatalogRows(rows: SupplierComparisonRow[]): SupplierComparisonRow[] {
+    const uniqueRows = new Map<string, SupplierComparisonRow>();
+
+    for (const row of rows) {
+      const normalizedEan = row.ean.trim();
+
+      if (!normalizedEan || uniqueRows.has(normalizedEan)) {
+        continue;
+      }
+
+      uniqueRows.set(normalizedEan, row);
+    }
+
+    return Array.from(uniqueRows.values());
   }
 
   private async syncDraftItems(): Promise<void> {

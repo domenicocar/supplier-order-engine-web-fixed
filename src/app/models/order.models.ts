@@ -57,6 +57,10 @@ export interface OrderItem {
   status: string;
   description?: string;
   supplierId?: string;
+  sourceEan?: string;
+  targetEan?: string;
+  catalogEan?: string;
+  mappedEan?: string;
 }
 
 export interface ReviewItem {
@@ -144,6 +148,8 @@ export interface SupplierComparisonRow {
   ean: string;
   description: string;
   quantity: number | null;
+  sourceEan?: string;
+  sourceDescription?: string;
   bestOffer: SupplierComparisonOffer | null;
   selectedOffer: SupplierComparisonOffer | null;
   availableSuppliers: SupplierComparisonOffer[];
@@ -191,6 +197,7 @@ export interface SessionOrder {
   importPdfError?: string | null;
   suppliers?: SupplierDefinition[];
   supplierComparisonRows?: SupplierComparisonRow[];
+  productMappings?: ProductMappingResponse[];
   importResult?: OrderImportResult;
   exportResult?: OrderExportResult;
   supplierUploads: Record<string, SupplierUploadResult[]>;
@@ -210,6 +217,22 @@ export interface ListOrdersResponse {
 
 export interface SupplierComparisonResponse {
   rows: SupplierComparisonRow[];
+}
+
+export interface ProductMappingPayload {
+  sourceEan: string;
+  sourceDescription: string;
+  targetEan: string;
+}
+
+export interface ProductMappingResponse {
+  id: string;
+  sourceEan: string;
+  sourceDescriptionLastSeen: string;
+  targetEan: string;
+  targetDescriptionSnapshot: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ImportOrderResponse {

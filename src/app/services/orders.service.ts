@@ -18,6 +18,8 @@ import {
   OrderExportResult,
   OrderImportResult,
   OrderItem,
+  ProductMappingPayload,
+  ProductMappingResponse,
   PdfImportJobStatus,
   PdfImportStatusResponse,
   ReviewItem,
@@ -128,6 +130,26 @@ export class OrdersService {
   getOrderCatalog(orderId: string): Observable<SupplierComparisonResponse> {
     return this.api.get<unknown>(`/orders/${orderId}/catalog`).pipe(
       map((payload) => this.normalizeSupplierComparisonResponse(payload))
+    );
+  }
+
+  searchOrderCatalog(orderId: string, query: string): Observable<SupplierComparisonResponse> {
+    return this.api.get<unknown>('/catalog/search', {
+      params: {
+        orderId,
+        q: query
+      }
+    }).pipe(
+      map((payload) => this.normalizeSupplierComparisonResponse(payload))
+    );
+  }
+
+  createProductMapping(
+    orderId: string,
+    payload: ProductMappingPayload
+  ): Observable<ProductMappingResponse> {
+    return this.api.post<unknown>(`/orders/${orderId}/product-mappings`, payload).pipe(
+      map((response) => this.normalizeProductMappingResponse(response, payload))
     );
   }
 
@@ -314,6 +336,14 @@ export class OrdersService {
       ),
       supplierComparisonRows: this.normalizeSupplierComparisonRows(
         this.pickValue(orderSource, ['supplierComparisonRows', 'supplier_comparison_rows'])
+      ),
+      productMappings: this.normalizeProductMappings(
+        this.pickValue(orderSource, [
+          'productMappings',
+          'product_mappings',
+          'mappings'
+        ]) ??
+          this.pickValue(source, ['productMappings', 'product_mappings', 'mappings'])
       ),
       importResult:
       importedItemDetails.length > 0
@@ -541,8 +571,44 @@ export class OrdersService {
 
     return {
       rows: this.normalizeSupplierComparisonRows(
-        this.pickValue(source, ['rows', 'items', 'comparisons', 'supplierComparisonRows']) ?? source
+        this.pickValue(source, [
+          'rows',
+          'items',
+          'comparisons',
+          'supplierComparisonRows',
+          'results',
+          'data',
+          'catalog',
+          'products'
+        ]) ?? source
       )
+    };
+  }
+
+  private normalizeProductMappingResponse(
+    payload: unknown,
+    fallback: ProductMappingPayload
+  ): ProductMappingResponse {
+    const source = this.unwrap(payload);
+
+    return {
+      id: this.pickString(source, ['id', 'mappingId', 'mapping_id']) ?? '',
+      sourceEan:
+        this.pickString(source, ['sourceEan', 'source_ean']) ?? fallback.sourceEan,
+      sourceDescriptionLastSeen:
+        this.pickString(source, ['sourceDescriptionLastSeen', 'source_description_last_seen']) ??
+        fallback.sourceDescription,
+      targetEan:
+        this.pickString(source, ['targetEan', 'target_ean']) ?? fallback.targetEan,
+      targetDescriptionSnapshot:
+        this.pickString(source, [
+          'targetDescriptionSnapshot',
+          'target_description_snapshot'
+        ]) ?? '',
+      createdAt:
+        this.pickString(source, ['createdAt', 'created_at']) ?? '',
+      updatedAt:
+        this.pickString(source, ['updatedAt', 'updated_at']) ?? ''
     };
   }
 
@@ -621,7 +687,11 @@ export class OrdersService {
             undefined,
           quantity: this.pickNumber(entry, ['quantity', 'qty', 'orderedQuantity']),
           status: this.pickString(entry, ['status', 'itemStatus']) ?? 'PENDING',
-          supplierId: this.pickString(entry, ['supplierId', 'supplier_id'])
+          supplierId: this.pickString(entry, ['supplierId', 'supplier_id']),
+          sourceEan: this.pickString(entry, ['sourceEan', 'source_ean']),
+          targetEan: this.pickString(entry, ['targetEan', 'target_ean']),
+          catalogEan: this.pickString(entry, ['catalogEan', 'catalog_ean']),
+          mappedEan: this.pickString(entry, ['mappedEan', 'mapped_ean'])
         }
       ];
     });
@@ -789,9 +859,64 @@ export class OrdersService {
             this.pickString(entry, ['description', 'descrizione', 'productName', 'name']) ??
             'Descrizione non disponibile',
           quantity: this.pickNumber(entry, ['quantity', 'qty', 'orderedQuantity']),
+          sourceEan: this.pickString(entry, [
+            'sourceEan',
+            'source_ean',
+            'originalEan',
+            'original_ean',
+            'mappedFromEan',
+            'mapped_from_ean'
+          ]),
+          sourceDescription: this.pickString(entry, [
+            'sourceDescription',
+            'source_description',
+            'originalDescription',
+            'original_description',
+            'mappedFromDescription',
+            'mapped_from_description'
+          ]),
           bestOffer,
           selectedOffer,
           availableSuppliers: sortedSuppliers
+        }
+      ];
+    });
+  }
+
+  private normalizeProductMappings(value: unknown): ProductMappingResponse[] {
+    return this.asArray(value).flatMap((entry) => {
+      if (!this.isRecord(entry)) {
+        return [];
+      }
+
+      const sourceEan = this.pickString(entry, ['sourceEan', 'source_ean']);
+      const targetEan = this.pickString(entry, ['targetEan', 'target_ean']);
+
+      if (!sourceEan || !targetEan) {
+        return [];
+      }
+
+      return [
+        {
+          id: this.pickString(entry, ['id', 'mappingId', 'mapping_id']) ?? '',
+          sourceEan,
+          sourceDescriptionLastSeen:
+            this.pickString(entry, [
+              'sourceDescriptionLastSeen',
+              'source_description_last_seen',
+              'sourceDescription',
+              'source_description'
+            ]) ?? '',
+          targetEan,
+          targetDescriptionSnapshot:
+            this.pickString(entry, [
+              'targetDescriptionSnapshot',
+              'target_description_snapshot',
+              'targetDescription',
+              'target_description'
+            ]) ?? '',
+          createdAt: this.pickString(entry, ['createdAt', 'created_at']) ?? '',
+          updatedAt: this.pickString(entry, ['updatedAt', 'updated_at']) ?? ''
         }
       ];
     });

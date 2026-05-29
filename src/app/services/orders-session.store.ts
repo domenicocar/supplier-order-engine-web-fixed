@@ -48,6 +48,7 @@ export class OrdersSessionStore {
         suppliers: order.suppliers ?? orders[index].suppliers,
         supplierComparisonRows:
           order.supplierComparisonRows ?? orders[index].supplierComparisonRows,
+        productMappings: order.productMappings ?? orders[index].productMappings,
         importResult: order.importResult ?? orders[index].importResult,
         exportResult: order.exportResult ?? orders[index].exportResult,
         supplierUploads: this.mergeSupplierUploads(
@@ -153,6 +154,9 @@ export class OrdersSessionStore {
       suppliers: order.suppliers ? [...order.suppliers] : undefined,
       supplierComparisonRows: order.supplierComparisonRows
         ? [...order.supplierComparisonRows]
+        : undefined,
+      productMappings: order.productMappings
+        ? [...order.productMappings]
         : undefined,
       supplierUploads: { ...order.supplierUploads }
     };

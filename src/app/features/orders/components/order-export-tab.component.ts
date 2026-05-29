@@ -332,6 +332,8 @@ import { formatPrice } from './order-detail-view.utils';
                           <button
                             type="button"
                             class="supplier-table__action-button"
+                            [disabled]="readOnly()"
+                            (click)="associateToCatalogRequested.emit(item)"
                           >
                             Associa a catalogo
                           </button>
@@ -369,6 +371,7 @@ export class OrderExportTabComponent {
 
   readonly exportRequested = output<void>();
   readonly closeRequested = output<void>();
+  readonly associateToCatalogRequested = output<OrderExportSummaryRow>();
 
   readonly formatPrice = formatPrice;
   readonly searchProduct = signal('');
