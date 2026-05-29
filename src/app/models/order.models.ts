@@ -51,6 +51,7 @@ export interface SupplierUploadPreview {
 }
 
 export interface OrderItem {
+  lineId?: string;
   ean: string;
   quantity: number | null;
   status: string;

@@ -612,6 +612,9 @@ export class OrdersService {
 
       return [
         {
+          lineId:
+            this.pickString(entry, ['lineId', 'line_id']) ??
+            `line-${index + 1}`,
           ean: this.pickString(entry, ['ean', 'EAN', 'barcode', 'code']) ?? `item-${index + 1}`,
           description:
             this.pickString(entry, ['description', 'descrizione', 'productName', 'name']) ??

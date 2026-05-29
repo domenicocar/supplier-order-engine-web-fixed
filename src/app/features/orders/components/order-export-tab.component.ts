@@ -214,7 +214,7 @@ import { formatPrice } from './order-detail-view.utils';
                       </div>
 
                       <ul class="supplier-table__body">
-                        @for (item of supplier.items; track item.ean) {
+                        @for (item of supplier.items; track item.lineId) {
                           <li class="supplier-table__row">
                             <div
                               class="supplier-table__cell supplier-table__cell--ean"
@@ -298,7 +298,7 @@ import { formatPrice } from './order-detail-view.utils';
                   </div>
 
                   <ul class="supplier-table__body">
-                    @for (item of missingRows(); track item.ean) {
+                    @for (item of missingRows(); track item.lineId) {
                       <li class="supplier-table__row supplier-table__row--missing">
                         <div
                           class="supplier-table__cell supplier-table__cell--ean"

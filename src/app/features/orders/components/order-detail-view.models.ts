@@ -14,6 +14,8 @@ export interface SupplierComparisonSelection {
 }
 
 export interface SupplierComparisonTableRow extends SupplierComparisonSelection {
+  lineId: string;
+  lineType: 'order' | 'catalog';
   ean: string;
   description: string;
   quantity: number | null;
@@ -22,6 +24,7 @@ export interface SupplierComparisonTableRow extends SupplierComparisonSelection 
 }
 
 export interface OrderExportSummaryRow {
+  lineId: string;
   ean: string;
   description: string;
   quantity: number | null;

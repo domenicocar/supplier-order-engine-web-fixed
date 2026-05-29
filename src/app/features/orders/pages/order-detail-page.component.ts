@@ -235,7 +235,6 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                 >
                   <app-supplier-comparison-tab
                     [rows]="supplierComparisonRows()"
-                    [orderItems]="currentOrder.items"
                     [loading]="supplierComparisonLoading()"
                     [requested]="supplierComparisonRequested()"
                     [error]="supplierComparisonError()"
@@ -243,6 +242,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                     (loadRequested)="loadSupplierComparison()"
                     (selectionChanged)="onSupplierComparisonSelectionChange($event)"
                     (quantityChanged)="onSupplierComparisonQuantityChange($event)"
+                    (splitRequested)="onSupplierComparisonSplitRequested($event)"
                   />
                 </div>
               </p-tabpanel>
@@ -823,12 +823,14 @@ export class OrderDetailPageComponent {
     }
   }
 
-  onSupplierComparisonSelectionChange(payload: { ean: string; supplierId: string }): void {
+  onSupplierComparisonSelectionChange(payload: { lineId: string; supplierId: string }): void {
     if (this.isReadOnlyOrder()) {
       return;
     }
 
-    const row = this.supplierComparisonRows().find((currentRow) => currentRow.ean === payload.ean);
+    const row = this.supplierComparisonRows().find(
+      (currentRow) => currentRow.lineId === payload.lineId
+    );
     const option = row?.availableSuppliers.find(
       (currentOption) => currentOption.supplierId === payload.supplierId
     );
@@ -839,7 +841,7 @@ export class OrderDetailPageComponent {
 
     this.supplierComparisonSelections.update((selections) => ({
       ...selections,
-      [payload.ean]: {
+      [payload.lineId]: {
         selectedSupplierId: option.supplierId,
         selectedSupplierName: option.supplierName,
         selectedPrice: option.netPrice ?? option.price,
@@ -849,15 +851,78 @@ export class OrderDetailPageComponent {
     this.scheduleDraftSync();
   }
 
-  onSupplierComparisonQuantityChange(payload: { ean: string; quantity: number | null }): void {
+  onSupplierComparisonQuantityChange(payload: { lineId: string; quantity: number | null }): void {
     if (this.isReadOnlyOrder()) {
       return;
     }
 
     this.supplierComparisonQuantities.update((quantities) => ({
       ...quantities,
-      [payload.ean]: payload.quantity
+      [payload.lineId]: payload.quantity
     }));
+    this.scheduleDraftSync();
+  }
+
+  onSupplierComparisonSplitRequested(payload: { lineId: string }): void {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
+    const orderId = this.orderId();
+
+    if (!orderId) {
+      return;
+    }
+
+    const draftItems = this.buildDraftOrderItems();
+    const index = draftItems.findIndex((item) => item.lineId === payload.lineId);
+
+    if (index === -1) {
+      return;
+    }
+
+    const currentItem = draftItems[index];
+
+    if (currentItem.quantity <= 1) {
+      return;
+    }
+
+    const duplicatedItem = {
+      ...currentItem,
+      lineId: this.createClientLineId(),
+      quantity: 1
+    };
+
+    const nextItems = [...draftItems];
+    nextItems[index] = {
+      ...currentItem,
+      quantity: currentItem.quantity - 1
+    };
+    nextItems.splice(index + 1, 0, duplicatedItem);
+
+    this.supplierComparisonQuantities.update((quantities) => ({
+      ...quantities,
+      [currentItem.lineId]: currentItem.quantity - 1,
+      [duplicatedItem.lineId]: 1
+    }));
+
+    this.supplierComparisonSelections.update((selections) => {
+      const currentSelection = selections[currentItem.lineId];
+
+      if (!currentSelection) {
+        return selections;
+      }
+
+      return {
+        ...selections,
+        [duplicatedItem.lineId]: { ...currentSelection }
+      };
+    });
+
+    this.runWithScrollLock(() => {
+      this.ordersStore.setOrderItems(orderId, this.buildLocalDraftItems(nextItems));
+    });
+
     this.scheduleDraftSync();
   }
 
@@ -913,7 +978,8 @@ export class OrderDetailPageComponent {
     this.pageError.set(null);
 
     try {
-      const exportItems = this.buildPersistedOrderItemPayload();
+      const draftItems = this.buildDraftOrderItems();
+      const exportItems = this.buildPersistedOrderItemPayload(draftItems);
 
       await firstValueFrom(this.ordersService.syncOrderItems(orderId, exportItems));
       const response = await firstValueFrom(this.ordersService.exportOrder(orderId));
@@ -958,7 +1024,8 @@ export class OrderDetailPageComponent {
     this.pageNotice.set(null);
 
     try {
-      const exportItems = this.buildPersistedOrderItemPayload();
+      const draftItems = this.buildDraftOrderItems();
+      const exportItems = this.buildPersistedOrderItemPayload(draftItems);
       await firstValueFrom(this.ordersService.syncOrderItems(orderId, exportItems));
       const response = await firstValueFrom(this.ordersService.closeOrder(orderId));
       const currentOrder = this.order();
@@ -1055,69 +1122,62 @@ export class OrderDetailPageComponent {
 
   private buildOrderExportSummaryRows(): OrderExportSummaryRow[] {
     const currentOrder = this.order();
-    const comparisonRows = this.supplierComparisonRows();
-    const orderItems = currentOrder?.items ?? [];
 
-    if (orderItems.length === 0 && comparisonRows.length === 0) {
+    if (!currentOrder) {
       return [];
     }
 
-    const orderItemsByEan = new Map(orderItems.map((item) => [item.ean, item] as const));
-    const comparisonRowsByEan = new Map(comparisonRows.map((row) => [row.ean, row] as const));
-
-    const manualComparisonRows = comparisonRows.filter(
-      (row) =>
-        !orderItemsByEan.has(row.ean) &&
-        typeof row.quantity === 'number' &&
-        Number.isFinite(row.quantity) &&
-        row.quantity > 0
+    const comparisonRows = this.supplierComparisonRows();
+    const orderRowEans = new Set(
+      comparisonRows
+        .filter((row) => row.lineType === 'order')
+        .map((row) => row.ean.trim())
+        .filter((ean) => ean.length > 0)
     );
 
-    const rowsToSummarize = [
-      ...orderItems.map((item) => ({
-        ean: item.ean,
-        description: item.description,
-        quantity: item.quantity
-      })),
-      ...manualComparisonRows.map((row) => ({
-        ean: row.ean,
-        description: row.description,
-        quantity: row.quantity
-      }))
-    ];
+    return comparisonRows
+      .filter((row) => {
+        if (row.lineType === 'order') {
+          return true;
+        }
 
-    return rowsToSummarize.map((item, index) => {
-      const comparisonRow = comparisonRowsByEan.get(item.ean);
-      const quantitySource = comparisonRow?.quantity ?? item.quantity;
-      const normalizedQuantity =
-        typeof quantitySource === 'number' && Number.isFinite(quantitySource)
-          ? Math.max(0, quantitySource)
-          : null;
-      const foundInSuppliers = (comparisonRow?.availableSuppliers.length ?? 0) > 0;
-      const selectedPrice = foundInSuppliers ? comparisonRow?.selectedPrice ?? null : null;
-      const packageSize = foundInSuppliers ? comparisonRow?.selectedPackageSize ?? 1 : 1;
-      const packPrice =
-        selectedPrice !== null ? selectedPrice * packageSize : null;
-      const totalPieces =
-        normalizedQuantity !== null ? normalizedQuantity * packageSize : null;
-      const lineTotal = calculateRoundedLineTotal(selectedPrice, totalPieces);
+        return (
+          !orderRowEans.has(row.ean.trim()) &&
+          typeof row.quantity === 'number' &&
+          Number.isFinite(row.quantity) &&
+          row.quantity > 0
+        );
+      })
+      .map((row) => {
+        const normalizedQuantity =
+          typeof row.quantity === 'number' && Number.isFinite(row.quantity)
+            ? Math.max(0, row.quantity)
+            : null;
+        const foundInSuppliers = row.availableSuppliers.length > 0;
+        const selectedPrice = row.selectedPrice ?? null;
+        const packageSize = row.selectedPackageSize ?? 1;
+        const packPrice = selectedPrice !== null ? selectedPrice * packageSize : null;
+        const totalPieces =
+          normalizedQuantity !== null ? normalizedQuantity * packageSize : null;
+        const lineTotal = calculateRoundedLineTotal(selectedPrice, totalPieces);
 
-      return {
-        ean: item.ean,
-        description: item.description ?? comparisonRow?.description ?? `Prodotto ${index + 1}`,
-        quantity: normalizedQuantity,
-        packageSize,
-        totalPieces,
-        supplierId: foundInSuppliers ? comparisonRow?.selectedSupplierId ?? '' : '',
-        supplierName: foundInSuppliers ? comparisonRow?.selectedSupplierName ?? '' : '',
-        unitPrice: selectedPrice,
-        packPrice,
-        lineTotal,
-        foundInSuppliers,
-        availableSuppliersCount: comparisonRow?.availableSuppliers.length ?? 0,
-        missingReason: foundInSuppliers ? undefined : 'Non trovato nei listini dei fornitori caricati'
-      };
-    });
+        return {
+          lineId: row.lineId,
+          ean: row.ean,
+          description: row.description,
+          quantity: normalizedQuantity,
+          packageSize,
+          totalPieces,
+          supplierId: row.selectedSupplierId,
+          supplierName: row.selectedSupplierName,
+          unitPrice: selectedPrice,
+          packPrice,
+          lineTotal,
+          foundInSuppliers,
+          availableSuppliersCount: row.availableSuppliers.length,
+          missingReason: foundInSuppliers ? undefined : 'Non trovato nei listini dei fornitori caricati'
+        };
+      });
   }
 
   private buildSupplierExportSummary(rows: OrderExportSummaryRow[]): SupplierExportSummary[] {
@@ -1155,6 +1215,34 @@ export class OrderDetailPageComponent {
     return Array.from(grouped.values()).sort((left, right) =>
       left.supplierName.localeCompare(right.supplierName)
     );
+  }
+
+  private resolveExportRowDescription(params: {
+    ean: string;
+    itemDescription?: string;
+    comparisonDescription?: string;
+    importedDescription?: string;
+    reviewDescription?: string;
+    fallbackIndex: number;
+  }): string {
+    const candidates = [
+      params.itemDescription,
+      params.comparisonDescription,
+      params.importedDescription,
+      params.reviewDescription
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim().length > 0) {
+        return candidate.trim();
+      }
+    }
+
+    if (params.ean.trim().length > 0) {
+      return `Descrizione non disponibile (EAN ${params.ean})`;
+    }
+
+    return `Descrizione non disponibile (prodotto ${params.fallbackIndex + 1})`;
   }
 
   private buildExportOverview(rows: OrderExportSummaryRow[]): OrderExportOverview | null {
@@ -1275,27 +1363,89 @@ export class OrderDetailPageComponent {
 
   private buildSupplierComparisonTableRows(): SupplierComparisonTableRow[] {
     const currentOrder = this.order();
+    const comparisonSourceRows = currentOrder?.supplierComparisonRows ?? [];
 
-    if (!currentOrder?.supplierComparisonRows?.length) {
+    if (!currentOrder) {
       return [];
     }
 
     const selections = this.supplierComparisonSelections();
     const quantityOverrides = this.supplierComparisonQuantities();
-    const orderItemsByEan = new Map(
-      currentOrder.items.map((item) => [item.ean, item] as const)
+    const comparisonRowsByEan = new Map(
+      comparisonSourceRows.map((row) => [row.ean, row] as const)
+    );
+    const currentOrderEans = new Set(
+      currentOrder.items.map((item) => item.ean.trim()).filter((ean) => ean.length > 0)
     );
 
-    return currentOrder.supplierComparisonRows
-      .map((row) => {
-        const manualSelection = selections[row.ean];
+    const orderRows = currentOrder.items.map((item, index) => {
+      const lineId = this.resolveOrderItemLineId(item, index);
+      const comparisonRow = comparisonRowsByEan.get(item.ean);
+      const manualSelection = selections[lineId];
+      const selectedOption = comparisonRow
+        ? resolveSelectedSupplierComparisonOffer(
+            comparisonRow,
+            manualSelection ??
+              (item.supplierId
+                ? {
+                    selectedSupplierId: item.supplierId,
+                    selectedSupplierName:
+                      this.resolveSupplierName(currentOrder, item.supplierId) ?? '',
+                    selectedPrice: null,
+                    selectedPackageSize: 1
+                  }
+                : undefined)
+          )
+        : null;
+      const selectedSupplierId =
+        manualSelection?.selectedSupplierId ?? selectedOption?.supplierId ?? item.supplierId ?? '';
+      const selectedSupplierName =
+        manualSelection?.selectedSupplierName ||
+        selectedOption?.supplierName ||
+        this.resolveSupplierName(currentOrder, item.supplierId) ||
+        '';
+      const selectedPrice =
+        manualSelection?.selectedPrice ?? selectedOption?.netPrice ?? selectedOption?.price ?? null;
+      const selectedPackageSize =
+        manualSelection?.selectedPackageSize ?? selectedOption?.packageSize ?? 1;
+
+      return {
+        lineId,
+        lineType: 'order' as const,
+        ean: item.ean,
+        description: this.resolveLineDescription(
+          currentOrder,
+          item.ean,
+          item.description ?? comparisonRow?.description,
+          index,
+          comparisonRow?.description
+        ),
+        quantity: quantityOverrides[lineId] ?? item.quantity,
+        bestOffer: comparisonRow?.bestOffer ?? null,
+        selectedSupplierId,
+        selectedSupplierName,
+        selectedPrice,
+        selectedPackageSize,
+        availableSuppliers: comparisonRow?.availableSuppliers ?? []
+      };
+    });
+
+    const catalogRows = comparisonSourceRows.map((row, index) => {
+        const lineId = `catalog:${row.ean}`;
+        const manualSelection = selections[lineId];
         const selectedOption = resolveSelectedSupplierComparisonOffer(row, manualSelection);
-        const orderItemQuantity = orderItemsByEan.get(row.ean)?.quantity ?? null;
 
         return {
+          lineId,
+          lineType: 'catalog' as const,
           ean: row.ean,
-          description: row.description,
-          quantity: quantityOverrides[row.ean] ?? row.quantity ?? orderItemQuantity,
+          description: this.resolveLineDescription(
+            currentOrder,
+            row.ean,
+            row.description,
+            currentOrder.items.length + index
+          ),
+          quantity: quantityOverrides[lineId] ?? row.quantity,
           bestOffer: row.bestOffer,
           selectedSupplierId: selectedOption?.supplierId ?? '',
           selectedSupplierName: selectedOption?.supplierName ?? '',
@@ -1303,8 +1453,71 @@ export class OrderDetailPageComponent {
           selectedPackageSize: selectedOption?.packageSize ?? 1,
           availableSuppliers: row.availableSuppliers
         };
-      })
-      .sort((left, right) => left.ean.localeCompare(right.ean));
+      });
+
+    return [...orderRows, ...catalogRows];
+  }
+
+  private resolveLineDescription(
+    order: SessionOrder,
+    ean: string,
+    preferredDescription: string | undefined,
+    fallbackIndex: number,
+    comparisonDescription?: string
+  ): string {
+    const importedDescription = order.importResult?.importedItems.find(
+      (item) => item.ean === ean && item.description?.trim()
+    )?.description;
+    const reviewDescription = order.reviewItems.find(
+      (item) => item.ean === ean && item.description?.trim()
+    )?.description;
+
+    return this.resolveExportRowDescription({
+      ean,
+      itemDescription: preferredDescription,
+      comparisonDescription,
+      importedDescription,
+      reviewDescription,
+      fallbackIndex
+    });
+  }
+
+  private resolveSupplierName(order: SessionOrder, supplierId: string | undefined): string | null {
+    if (!supplierId) {
+      return null;
+    }
+
+    const supplier = (order.suppliers ?? []).find((currentSupplier) => currentSupplier.id === supplierId);
+
+    if (supplier?.name?.trim()) {
+      return supplier.name.trim();
+    }
+
+    for (const row of order.supplierComparisonRows ?? []) {
+      const matchingSupplier = row.availableSuppliers.find(
+        (currentSupplier) => currentSupplier.supplierId === supplierId
+      );
+
+      if (matchingSupplier?.supplierName?.trim()) {
+        return matchingSupplier.supplierName.trim();
+      }
+    }
+
+    return supplierId;
+  }
+
+  private resolveOrderItemLineId(item: OrderItem, index: number): string {
+    const normalizedLineId = item.lineId?.trim();
+
+    if (normalizedLineId) {
+      return normalizedLineId;
+    }
+
+    return `line-${index + 1}-${item.ean || 'item'}-${item.supplierId || 'unassigned'}`;
+  }
+
+  private createClientLineId(): string {
+    return `line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
   private scheduleDraftSync(): void {
@@ -1390,10 +1603,11 @@ export class OrderDetailPageComponent {
       return;
     }
 
-    const items = this.buildPersistedOrderItemPayload();
+    const draftItems = this.buildDraftOrderItems();
+    const items = this.buildPersistedOrderItemPayload(draftItems);
 
     this.runWithScrollLock(() => {
-      this.ordersStore.setOrderItems(orderId, this.buildLocalDraftItems(items));
+      this.ordersStore.setOrderItems(orderId, this.buildLocalDraftItems(draftItems));
     });
 
     try {
@@ -1405,9 +1619,11 @@ export class OrderDetailPageComponent {
     }
   }
 
-  private buildPersistedOrderItemPayload(): Array<{
+  private buildDraftOrderItems(): Array<{
+    lineId: string;
     ean: string;
     quantity: number;
+    description?: string;
     supplierId?: string;
   }> {
     return this.orderExportSummaryRows()
@@ -1419,14 +1635,40 @@ export class OrderDetailPageComponent {
           row.ean.trim().length > 0
       )
       .map((row) => ({
+        lineId: row.lineId,
         ean: row.ean,
         quantity: row.quantity as number,
+        description: row.description,
         ...(row.supplierId ? { supplierId: row.supplierId } : {})
       }));
   }
 
+  private buildPersistedOrderItemPayload(items: Array<{
+    lineId: string;
+    ean: string;
+    quantity: number;
+    description?: string;
+    supplierId?: string;
+  }>): Array<{
+    ean: string;
+    quantity: number;
+    supplierId?: string;
+  }> {
+    return items.map(({ ean, quantity, supplierId }) => ({
+      ean,
+      quantity,
+      ...(supplierId ? { supplierId } : {})
+    }));
+  }
+
   private buildLocalDraftItems(
-    items: Array<{ ean: string; quantity: number; supplierId?: string }>
+    items: Array<{
+      lineId: string;
+      ean: string;
+      quantity: number;
+      description?: string;
+      supplierId?: string;
+    }>
   ): OrderItem[] {
     return items.map((item) => ({
       ...item,
@@ -1458,7 +1700,7 @@ export class OrderDetailPageComponent {
 
   private captureComparisonFocusState():
     | {
-        ean: string;
+        lineId: string;
         field: 'quantity' | 'supplier';
         selectionStart: number | null;
         selectionEnd: number | null;
@@ -1473,15 +1715,15 @@ export class OrderDetailPageComponent {
       return null;
     }
 
-    const ean = activeElement.dataset['comparisonEan']?.trim();
+    const lineId = activeElement.dataset['comparisonLineId']?.trim();
     const field = activeElement.dataset['comparisonField'];
 
-    if (!ean || (field !== 'quantity' && field !== 'supplier')) {
+    if (!lineId || (field !== 'quantity' && field !== 'supplier')) {
       return null;
     }
 
     return {
-      ean,
+      lineId,
       field,
       selectionStart:
         activeElement instanceof HTMLInputElement ? activeElement.selectionStart : null,
@@ -1494,7 +1736,7 @@ export class OrderDetailPageComponent {
     scrollY: number,
     focusState:
       | {
-          ean: string;
+          lineId: string;
           field: 'quantity' | 'supplier';
           selectionStart: number | null;
           selectionEnd: number | null;
@@ -1511,7 +1753,7 @@ export class OrderDetailPageComponent {
       return;
     }
 
-    const selector = `[data-comparison-field="${focusState.field}"][data-comparison-ean="${CSS.escape(focusState.ean)}"]`;
+    const selector = `[data-comparison-field="${focusState.field}"][data-comparison-line-id="${CSS.escape(focusState.lineId)}"]`;
     const target = document.querySelector(selector);
 
     if (

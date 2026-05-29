@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, input, output, signal } f
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 
-import { OrderItem } from '../../../models/order.models';
 import { SupplierComparisonTableRow } from './order-detail-view.models';
 import {
   formatPrice,
@@ -98,7 +97,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         <div class="mt-6 overflow-hidden rounded-2xl border border-[var(--app-border)]">
           <p-table
             [value]="paginatedRows()"
-            dataKey="ean"
+            dataKey="lineId"
             [rowTrackBy]="trackByEan"
             responsiveLayout="scroll"
           >
@@ -114,7 +113,16 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
             </ng-template>
             <ng-template pTemplate="body" let-row>
               <tr>
-                <td>{{ row.ean }}</td>
+                <td>
+                  <div class="flex flex-col gap-1">
+                    <span>{{ row.ean }}</span>
+                    @if (row.lineType === 'catalog') {
+                      <span class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[var(--app-text-muted)]">
+                        Catalogo
+                      </span>
+                    }
+                  </div>
+                </td>
                 <td>{{ row.description }}</td>
                 <td class="min-w-72">
                   <div class="flex flex-col gap-2">
@@ -147,10 +155,10 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                       <select
                         class="comparison-supplier-select__native"
                         data-comparison-field="supplier"
-                        [attr.data-comparison-ean]="row.ean"
+                        [attr.data-comparison-line-id]="row.lineId"
                         [value]="row.selectedSupplierId"
                         [disabled]="row.availableSuppliers.length === 0"
-                        (change)="onSelectionChange(row.ean, $event)"
+                        (change)="onSelectionChange(row.lineId, $event)"
                       >
                         @for (option of row.availableSuppliers; track option.supplierId) {
                           <option [value]="option.supplierId">
@@ -159,23 +167,55 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                         }
                       </select>
                     </div>
-                    <p class="px-1 text-xs text-[var(--app-text-muted)]">
-                      {{ supplierAvailabilityLabel(row.availableSuppliers.length) }}
-                    </p>
+                    <div class="comparison-availability">
+                      <p class="comparison-availability__label">
+                        {{ supplierAvailabilityLabel(row.availableSuppliers.length) }}
+                      </p>
+                    </div>
                   </div>
                 </td>
                 <td class="min-w-32">
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder="0"
-                    class="app-input w-full rounded-xl px-3 py-2"
-                    data-comparison-field="quantity"
-                    [attr.data-comparison-ean]="row.ean"
-                    [value]="row.quantity ?? ''"
-                    (input)="onQuantityChange(row.ean, $event)"
-                  />
+                  <div class="comparison-quantity-cell">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="0"
+                      class="app-input comparison-quantity-cell__input rounded-xl px-3 py-2"
+                      data-comparison-field="quantity"
+                      [attr.data-comparison-line-id]="row.lineId"
+                      [value]="row.quantity ?? ''"
+                      (input)="onQuantityChange(row.lineId, $event)"
+                    />
+                    @if (canSplitRow(row)) {
+                      <button
+                        type="button"
+                        class="comparison-availability__split-button comparison-quantity-cell__split-button"
+                        aria-label="Fraziona riga"
+                        title="Fraziona riga"
+                        (click)="splitRequested.emit({ lineId: row.lineId })"
+                      >
+                        <svg
+                          viewBox="0 0 311.495 311.495"
+                          aria-hidden="true"
+                          class="comparison-availability__split-icon"
+                        >
+                          <path
+                            d="M303.748,0H187.251c-4.142,0-7.5,3.358-7.5,7.5v20c0,4.142,3.358,7.5,7.5,7.5h64.246l-82.301,82.302
+                            c-1.407,1.406-2.197,3.314-2.197,5.303v181.39c0,4.142,3.358,7.5,7.5,7.5h20c4.142,0,7.5-3.358,7.5-7.5V133.996l74.248-74.248
+                            v64.246c0,4.142,3.358,7.5,7.5,7.5h20c4.142,0,7.5-3.358,7.5-7.5V7.5C311.248,3.358,307.889,0,303.748,0z"
+                            fill="currentColor"
+                          />
+                          <path
+                            d="M59.998,35h64.246c4.142,0,7.5-3.358,7.5-7.5v-20c0-4.142-3.358-7.5-7.5-7.5H7.748
+                            c-4.142,0-7.5,3.358-7.5,7.5v116.494c0,4.142,3.358,7.5,7.5,7.5h20c4.142,0,7.5-3.358,7.5-7.5V59.748l74.248,74.248v169.999
+                            c0,4.142,3.358,7.5,7.5,7.5h20c4.142,0,7.5-3.358,7.5-7.5v-181.39c0-1.989-0.79-3.897-2.197-5.303L59.998,35z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                      </button>
+                    }
+                  </div>
                 </td>
                 <td class="min-w-40">
                   <div class="comparison-pack-total">
@@ -333,33 +373,82 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
       .comparison-supplier-select__native:disabled {
         cursor: not-allowed;
       }
+
+      .comparison-availability {
+        display: inline-flex;
+        align-items: center;
+        padding-inline: 0.25rem;
+      }
+
+      .comparison-availability__label {
+        margin: 0;
+        color: var(--app-text-muted);
+        font-size: 0.75rem;
+      }
+
+      .comparison-availability__split-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.8rem;
+        height: 1.8rem;
+        padding: 0;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: #5b6784;
+        transition: background-color 160ms ease, color 160ms ease;
+      }
+
+      .comparison-availability__split-button:hover {
+        background: rgba(91, 103, 132, 0.1);
+        color: #2f3d60;
+      }
+
+      .comparison-availability__split-button:focus-visible {
+        outline: 2px solid rgba(68, 122, 89, 0.28);
+        outline-offset: 2px;
+      }
+
+      .comparison-availability__split-icon {
+        width: 1.15rem;
+        height: 1.15rem;
+      }
+
+      .comparison-quantity-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+      }
+
+      .comparison-quantity-cell__input {
+        width: 100%;
+        min-width: 0;
+        max-width: 10.5rem;
+      }
+
+      .comparison-quantity-cell__split-button {
+        flex: 0 0 auto;
+      }
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SupplierComparisonTabComponent {
   readonly rows = input<SupplierComparisonTableRow[]>([]);
-  readonly orderItems = input<OrderItem[]>([]);
   readonly loading = input(false);
   readonly requested = input(false);
   readonly error = input<string | null>(null);
   readonly hasSupplierUploads = input(false);
 
   readonly loadRequested = output<void>();
-  readonly selectionChanged = output<{ ean: string; supplierId: string }>();
-  readonly quantityChanged = output<{ ean: string; quantity: number | null }>();
+  readonly selectionChanged = output<{ lineId: string; supplierId: string }>();
+  readonly quantityChanged = output<{ lineId: string; quantity: number | null }>();
+  readonly splitRequested = output<{ lineId: string }>();
 
   readonly searchTerm = signal('');
   readonly catalogViewMode = signal<'all' | 'ordered'>('all');
   readonly currentPage = signal(1);
-  readonly orderedEans = computed(
-    () =>
-      new Set(
-        this.orderItems()
-          .map((item) => item.ean.trim())
-          .filter((ean) => ean.length > 0)
-      )
-  );
 
   readonly filteredRows = computed(() => {
     const normalizedSearch = this.searchTerm().trim().toLowerCase();
@@ -381,11 +470,10 @@ export class SupplierComparisonTabComponent {
 
   readonly visibleRows = computed(() => {
     if (this.catalogViewMode() === 'all') {
-      return this.filteredRows();
+      return this.filteredRows().filter((row) => row.lineType === 'catalog');
     }
 
-    const orderedEans = this.orderedEans();
-    return this.filteredRows().filter((row) => orderedEans.has(row.ean));
+    return this.filteredRows().filter((row) => row.lineType === 'order');
   });
 
   readonly totalPages = computed(() =>
@@ -424,7 +512,7 @@ export class SupplierComparisonTabComponent {
   readonly formatPrice = formatPrice;
   readonly formatSupplierOption = formatSupplierOption;
   readonly supplierAvailabilityLabel = supplierAvailabilityLabel;
-  readonly trackByEan = (_index: number, row: SupplierComparisonTableRow) => row.ean;
+  readonly trackByEan = (_index: number, row: SupplierComparisonTableRow) => row.lineId;
   private readonly euroFormatter = new Intl.NumberFormat('it-IT', {
     style: 'currency',
     currency: 'EUR',
@@ -467,22 +555,31 @@ export class SupplierComparisonTabComponent {
     this.currentPage.set(1);
   }
 
-  onSelectionChange(ean: string, event: Event): void {
-    const supplierId = (event.target as HTMLSelectElement).value;
-    this.selectionChanged.emit({ ean, supplierId });
+  canSplitRow(row: SupplierComparisonTableRow): boolean {
+    return (
+      row.lineType === 'order' &&
+      typeof row.quantity === 'number' &&
+      row.quantity > 1 &&
+      row.availableSuppliers.length >= 2
+    );
   }
 
-  onQuantityChange(ean: string, event: Event): void {
+  onSelectionChange(lineId: string, event: Event): void {
+    const supplierId = (event.target as HTMLSelectElement).value;
+    this.selectionChanged.emit({ lineId, supplierId });
+  }
+
+  onQuantityChange(lineId: string, event: Event): void {
     const rawValue = (event.target as HTMLInputElement).value.trim();
 
     if (!rawValue) {
-      this.quantityChanged.emit({ ean, quantity: null });
+      this.quantityChanged.emit({ lineId, quantity: null });
       return;
     }
 
     const numericValue = Number(rawValue);
     const quantity = Number.isFinite(numericValue) ? Math.max(0, Math.round(numericValue)) : null;
-    this.quantityChanged.emit({ ean, quantity });
+    this.quantityChanged.emit({ lineId, quantity });
   }
 
   goToPreviousPage(): void {
