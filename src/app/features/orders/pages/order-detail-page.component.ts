@@ -30,8 +30,13 @@ import {
   SupplierComparisonRow
 } from '../../../models/order.models';
 import { SupplierCreatePayload, SupplierDefinition } from '../../../models/supplier.models';
+import {
+  PaymentRequiredAction,
+  PaymentRequiredDialogComponent
+} from '../../../shared/components/payment-required-dialog.component';
 import { OrdersSessionStore } from '../../../services/orders-session.store';
 import { OrdersService } from '../../../services/orders.service';
+import { AuthStore } from '../../auth/stores/auth.store';
 import { OrderExportTabComponent } from '../components/order-export-tab.component';
 import {
   OrderExportOverview,
@@ -63,7 +68,8 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
     RouterLink,
     SupplierComparisonTabComponent,
     DialogModule,
-    TabsModule
+    TabsModule,
+    PaymentRequiredDialogComponent
   ],
   template: `
     @if (orderLoading()) {
@@ -457,6 +463,12 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
               </div>
             }
           </p-dialog>
+
+          <app-payment-required-dialog
+            [visible]="paymentRequiredDialogVisible()"
+            [action]="paymentRequiredAction()"
+            (visibleChange)="paymentRequiredDialogVisible.set($event)"
+          />
         </section>
       } @else {
         <section class="surface-panel flex flex-col gap-4 p-8">
@@ -514,6 +526,7 @@ export class OrderDetailPageComponent {
   private catalogSearchRequestSequence = 0;
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly authStore = inject(AuthStore);
   private readonly ordersStore = inject(OrdersSessionStore);
   private readonly ordersService = inject(OrdersService);
 
@@ -526,6 +539,8 @@ export class OrderDetailPageComponent {
   readonly exporting = signal(false);
   readonly closing = signal(false);
   readonly closeDialogVisible = signal(false);
+  readonly paymentRequiredDialogVisible = signal(false);
+  readonly paymentRequiredAction = signal<PaymentRequiredAction>('export-order');
   readonly catalogAssociationDialogVisible = signal(false);
   readonly catalogAssociationSourceRow = signal<OrderExportSummaryRow | null>(null);
   readonly catalogAssociationQuery = signal('');
@@ -1128,6 +1143,10 @@ export class OrderDetailPageComponent {
       return;
     }
 
+    if (this.openPaymentRequiredDialogIfNeeded('export-order')) {
+      return;
+    }
+
     const orderId = this.orderId();
 
     if (!orderId) {
@@ -1158,6 +1177,10 @@ export class OrderDetailPageComponent {
         window.URL.revokeObjectURL(url);
       }
     } catch (error: unknown) {
+      if (this.handlePaymentRequiredError(error, 'export-order')) {
+        return;
+      }
+
       this.pageError.set(this.toMessage(error, 'Export ordine non riuscito.'));
     } finally {
       this.exporting.set(false);
@@ -2206,6 +2229,41 @@ export class OrderDetailPageComponent {
     }
 
     return fallback;
+  }
+
+  private openPaymentRequiredDialogIfNeeded(action: PaymentRequiredAction): boolean {
+    if (this.authStore.accessProfile()?.isPaying !== false) {
+      return false;
+    }
+
+    this.paymentRequiredAction.set(action);
+    this.paymentRequiredDialogVisible.set(true);
+    this.pageError.set(null);
+    return true;
+  }
+
+  private handlePaymentRequiredError(error: unknown, action: PaymentRequiredAction): boolean {
+    if (!this.isPaymentRequiredError(error)) {
+      return false;
+    }
+
+    this.paymentRequiredAction.set(action);
+    this.paymentRequiredDialogVisible.set(true);
+    this.pageError.set(null);
+    return true;
+  }
+
+  private isPaymentRequiredError(error: unknown): boolean {
+    if (!(error instanceof HttpErrorResponse) || error.status !== 403) {
+      return false;
+    }
+
+    const message = this.toMessage(error, '').toLowerCase();
+    return (
+      message.includes('utenti non paganti') ||
+      message.includes('account pagante') ||
+      message.includes('utenti paganti')
+    );
   }
 
   private runWithScrollLock(action: () => void): void {

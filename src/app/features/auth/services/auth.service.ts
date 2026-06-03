@@ -3,6 +3,12 @@ import { AuthResponse, Session, User } from '@supabase/supabase-js';
 
 import { supabase } from '../../../core/supabase/supabase.client';
 
+export interface UserAccessProfile {
+  id: string;
+  role: string | null;
+  isPaying: boolean;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -31,6 +37,30 @@ export class AuthService {
   async getCurrentUser(): Promise<User | null> {
     const session = await this.getSession();
     return session?.user ?? null;
+  }
+
+  async getAccessProfile(userId: string): Promise<UserAccessProfile | null> {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('auth_user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data || typeof data !== 'object') {
+      return null;
+    }
+
+    const profile = data as Record<string, unknown>;
+
+    return {
+      id: typeof profile['id'] === 'string' ? profile['id'] : userId,
+      role: typeof profile['role'] === 'string' ? profile['role'] : null,
+      isPaying: profile['is_paying'] === true
+    };
   }
 
   onAuthStateChange(

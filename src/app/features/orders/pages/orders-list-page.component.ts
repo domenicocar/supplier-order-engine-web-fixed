@@ -6,13 +6,15 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 
 import { SessionOrder } from '../../../models/order.models';
+import { PaymentRequiredAction, PaymentRequiredDialogComponent } from '../../../shared/components/payment-required-dialog.component';
+import { AuthStore } from '../../auth/stores/auth.store';
 import { OrdersSessionStore } from '../../../services/orders-session.store';
 import { OrdersService } from '../../../services/orders.service';
 
 @Component({
   selector: 'app-orders-list-page',
   standalone: true,
-  imports: [ButtonModule, RouterLink, DialogModule],
+  imports: [ButtonModule, RouterLink, DialogModule, PaymentRequiredDialogComponent],
   template: `
     <section class="flex flex-col gap-8">
       <section class="grid gap-4 xl:grid-cols-[1.45fr_1fr_1fr]">
@@ -266,11 +268,18 @@ import { OrdersService } from '../../../services/orders.service';
           </div>
         </div>
       </p-dialog>
+
+      <app-payment-required-dialog
+        [visible]="paymentRequiredDialogVisible()"
+        [action]="paymentRequiredAction()"
+        (visibleChange)="paymentRequiredDialogVisible.set($event)"
+      />
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class OrdersListPageComponent {
+  private readonly authStore = inject(AuthStore);
   private readonly ordersService = inject(OrdersService);
   private readonly ordersStore = inject(OrdersSessionStore);
   private readonly italianShortDateFormatter = new Intl.DateTimeFormat('it-IT', {
@@ -292,6 +301,8 @@ export class OrdersListPageComponent {
   readonly creating = signal(false);
   readonly deletingOrderIds = signal<Record<string, boolean>>({});
   readonly deleteDialogOrder = signal<SessionOrder | null>(null);
+  readonly paymentRequiredDialogVisible = signal(false);
+  readonly paymentRequiredAction = signal<PaymentRequiredAction>('create-order');
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly ordersCount = computed(() => this.orders().length);
@@ -307,6 +318,10 @@ export class OrdersListPageComponent {
   }
 
   async createOrder(): Promise<void> {
+    if (this.shouldOpenPaymentRequiredDialogForCreate()) {
+      return;
+    }
+
     this.creating.set(true);
     this.error.set(null);
 
@@ -314,6 +329,10 @@ export class OrdersListPageComponent {
       const response = await firstValueFrom(this.ordersService.createOrder());
       this.ordersStore.upsertOrder(response.order);
     } catch (error: unknown) {
+      if (this.handlePaymentRequiredError(error, 'create-order')) {
+        return;
+      }
+
       this.error.set(this.toMessage(error, 'Creazione ordine non riuscita.'));
     } finally {
       this.creating.set(false);
@@ -515,6 +534,45 @@ export class OrdersListPageComponent {
     }
 
     return fallback;
+  }
+
+  private shouldOpenPaymentRequiredDialogForCreate(): boolean {
+    return this.ordersCount() >= 1 && this.openPaymentRequiredDialogIfNeeded('create-order');
+  }
+
+  private openPaymentRequiredDialogIfNeeded(action: PaymentRequiredAction): boolean {
+    if (this.authStore.accessProfile()?.isPaying !== false) {
+      return false;
+    }
+
+    this.paymentRequiredAction.set(action);
+    this.paymentRequiredDialogVisible.set(true);
+    this.error.set(null);
+    return true;
+  }
+
+  private handlePaymentRequiredError(error: unknown, action: PaymentRequiredAction): boolean {
+    if (!this.isPaymentRequiredError(error)) {
+      return false;
+    }
+
+    this.paymentRequiredAction.set(action);
+    this.paymentRequiredDialogVisible.set(true);
+    this.error.set(null);
+    return true;
+  }
+
+  private isPaymentRequiredError(error: unknown): boolean {
+    if (!(error instanceof HttpErrorResponse) || error.status !== 403) {
+      return false;
+    }
+
+    const message = this.toMessage(error, '').toLowerCase();
+    return (
+      message.includes('utenti non paganti') ||
+      message.includes('account pagante') ||
+      message.includes('utenti paganti')
+    );
   }
 
   private parseDate(value: string): Date | null {

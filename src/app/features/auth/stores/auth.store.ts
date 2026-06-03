@@ -2,7 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Session, User } from '@supabase/supabase-js';
 
-import { AuthService } from '../services/auth.service';
+import { AuthService, UserAccessProfile } from '../services/auth.service';
 
 @Injectable({
   providedIn: 'root'
@@ -13,12 +13,15 @@ export class AuthStore {
 
   private initialized = false;
   private initializePromise: Promise<void> | null = null;
+  private accessProfileRequestId = 0;
 
   readonly session = signal<Session | null>(null);
   readonly user = signal<User | null>(null);
+  readonly accessProfile = signal<UserAccessProfile | null | undefined>(undefined);
   readonly loading = signal(true);
   readonly suspendedMessage = signal<string | null>(null);
   readonly isAuthenticated = computed(() => !!this.session());
+  readonly isPaying = computed(() => this.accessProfile()?.isPaying === true);
   private authStateSubscribed = false;
 
   async initialize(): Promise<void> {
@@ -68,12 +71,15 @@ export class AuthStore {
     }
     this.session.set(null);
     this.user.set(null);
+    this.accessProfile.set(null);
     await this.router.navigate(['/login']);
   }
 
   private setSession(session: Session | null): void {
     this.session.set(session);
-    this.user.set(session?.user ?? null);
+    const nextUser = session?.user ?? null;
+    this.user.set(nextUser);
+    void this.loadAccessProfile(nextUser);
   }
 
   private ensureAuthStateSubscription(): void {
@@ -86,5 +92,33 @@ export class AuthStore {
       this.setSession(nextSession);
     });
     this.authStateSubscribed = true;
+  }
+
+  private async loadAccessProfile(user: User | null): Promise<void> {
+    const requestId = ++this.accessProfileRequestId;
+
+    if (!user) {
+      this.accessProfile.set(null);
+      return;
+    }
+
+    this.accessProfile.set(undefined);
+
+    try {
+      const profile = await this.authService.getAccessProfile(user.id);
+
+      if (requestId !== this.accessProfileRequestId) {
+        return;
+      }
+
+      this.accessProfile.set(profile);
+    } catch (error) {
+      if (requestId !== this.accessProfileRequestId) {
+        return;
+      }
+
+      console.error('[AuthStore] loadAccessProfile failed', error);
+      this.accessProfile.set(null);
+    }
   }
 }
