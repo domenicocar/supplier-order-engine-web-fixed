@@ -273,19 +273,30 @@ import { formatPrice } from './order-detail-view.utils';
             </div>
           } @else {
             <div class="missing-summary">
-              <div class="missing-summary__intro">
-                <i
-                  class="pi pi-exclamation-triangle missing-summary__icon"
-                  aria-hidden="true"
-                ></i>
-                <div>
-                  <p class="missing-summary__title">
-                    Prodotti non trovati ({{ missingRows().length }})
-                  </p>
-                  <p class="missing-summary__copy">
-                    Questi articoli non sono stati associati ad alcun fornitore.
-                  </p>
+              <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div class="missing-summary__intro">
+                  <i
+                    class="pi pi-exclamation-triangle missing-summary__icon"
+                    aria-hidden="true"
+                  ></i>
+                  <div>
+                    <p class="missing-summary__title">
+                      Prodotti non trovati ({{ missingRows().length }})
+                    </p>
+                    <p class="missing-summary__copy">
+                      Questi articoli non sono stati associati ad alcun fornitore.
+                    </p>
+                  </div>
                 </div>
+
+                <button
+                  pButton
+                  type="button"
+                  class="btn-secondary justify-center self-start !rounded-2xl !px-4 !py-2.5 !text-sm !font-semibold"
+                  (click)="missingProductsExportRequested.emit()"
+                >
+                  Esporta mancanti (.csv)
+                </button>
               </div>
 
               <div class="supplier-table-shell mt-4">
@@ -370,6 +381,7 @@ export class OrderExportTabComponent {
   readonly exportResult = input<OrderExportResult | undefined>(undefined);
 
   readonly exportRequested = output<void>();
+  readonly missingProductsExportRequested = output<void>();
   readonly closeRequested = output<void>();
   readonly associateToCatalogRequested = output<OrderExportSummaryRow>();
 

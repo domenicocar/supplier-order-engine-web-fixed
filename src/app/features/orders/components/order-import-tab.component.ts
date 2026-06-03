@@ -108,12 +108,14 @@ type DraftSupplierCard = {
           </label>
 
           <div class="mt-4 flex flex-wrap items-center gap-3">
-            <span
-              [class]="statusBadgeClass(orderFileCardState().status)"
-              class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]"
-            >
-              {{ statusLabel(orderFileCardState().status) }}
-            </span>
+                @if (shouldShowStatusBadge(orderFileCardState().status)) {
+                  <span
+                    [class]="statusBadgeClass(orderFileCardState().status)"
+                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]"
+                  >
+                    {{ statusLabel(orderFileCardState().status) }}
+                  </span>
+                }
             @if (orderFileCardState().fileName) {
               <span
                 class="rounded-full border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1 text-xs font-medium text-[var(--app-text-muted)]"
@@ -498,12 +500,14 @@ type DraftSupplierCard = {
                 </label>
 
                 <div class="mt-3 flex flex-wrap items-center gap-2">
-                  <span
-                    [class]="statusBadgeClass(draftSupplierCardState(draftSupplier.id).status)"
-                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]"
-                  >
-                    {{ statusLabel(draftSupplierCardState(draftSupplier.id).status) }}
-                  </span>
+                  @if (shouldShowStatusBadge(draftSupplierCardState(draftSupplier.id).status)) {
+                    <span
+                      [class]="statusBadgeClass(draftSupplierCardState(draftSupplier.id).status)"
+                      class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]"
+                    >
+                      {{ statusLabel(draftSupplierCardState(draftSupplier.id).status) }}
+                    </span>
+                  }
                   @if (draftSupplierCardState(draftSupplier.id).fileName) {
                     <span class="rounded-full border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1 text-xs font-medium text-[var(--app-text-muted)]">
                       {{ draftSupplierCardState(draftSupplier.id).fileName }}
@@ -588,12 +592,14 @@ type DraftSupplierCard = {
                 </label>
 
                 <div class="mt-3 flex flex-wrap items-center gap-2">
-                  <span
-                    [class]="statusBadgeClass(supplierCardState(supplier.id).status)"
-                    class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]"
-                  >
-                    {{ statusLabel(supplierCardState(supplier.id).status) }}
-                  </span>
+                  @if (shouldShowStatusBadge(supplierCardState(supplier.id).status)) {
+                    <span
+                      [class]="statusBadgeClass(supplierCardState(supplier.id).status)"
+                      class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]"
+                    >
+                      {{ statusLabel(supplierCardState(supplier.id).status) }}
+                    </span>
+                  }
                   @if (supplierCardState(supplier.id).fileName) {
                     <span class="rounded-full border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1 text-xs font-medium text-[var(--app-text-muted)]">
                       {{ supplierCardState(supplier.id).fileName }}
@@ -1289,6 +1295,10 @@ export class OrderImportTabComponent {
       default:
         return 'idle';
     }
+  }
+
+  shouldShowStatusBadge(status: UploadCardStatus): boolean {
+    return status !== 'idle';
   }
 
   private latestSupplierUpload(supplierId: string) {

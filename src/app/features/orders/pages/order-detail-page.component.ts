@@ -271,6 +271,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                   [missingRows]="missingOrderSummaryRows()"
                   [exportResult]="currentOrder.exportResult"
                   (exportRequested)="generateExport()"
+                  (missingProductsExportRequested)="exportMissingProducts()"
                   (closeRequested)="closeOrder()"
                   (associateToCatalogRequested)="onAssociateToCatalogRequested($event)"
                 />
@@ -826,22 +827,14 @@ export class OrderDetailPageComponent {
         })
       );
       this.upsertSupplier(orderId, createdSupplier);
-
-      this.setPendingSupplierDraftState(payload.draftId, {
-        status: 'processing',
-        fileName: payload.file.name,
-        message: `Analisi file fornitore ${payload.file.name}...`,
-        updatedAt: new Date().toISOString()
-      });
-
-      await this.previewSupplierFile(createdSupplier.id, payload.file);
-
       this.setPendingSupplierDraftState(payload.draftId, {
         status: 'completed',
         fileName: payload.file.name,
         message: `${supplierName} creato correttamente.`,
         updatedAt: new Date().toISOString()
       });
+
+      await this.previewSupplierFile(createdSupplier.id, payload.file);
     } catch (error: unknown) {
       const message = this.toMessage(error, 'Creazione fornitore non riuscita.');
       this.pageError.set(message);
@@ -1185,6 +1178,27 @@ export class OrderDetailPageComponent {
     } finally {
       this.exporting.set(false);
     }
+  }
+
+  exportMissingProducts(): void {
+    if (this.openPaymentRequiredDialogIfNeeded('export-order')) {
+      return;
+    }
+
+    const rows = this.missingOrderSummaryRows();
+
+    if (rows.length === 0) {
+      return;
+    }
+
+    const currentOrder = this.order();
+    const fileName = this.buildMissingProductsFileName(currentOrder?.createdAt ?? '');
+    const csvContent = this.buildMissingProductsCsv(rows);
+    const blob = new Blob([`\uFEFF${csvContent}`], {
+      type: 'text/csv;charset=utf-8;'
+    });
+
+    this.downloadClientFile(blob, fileName);
   }
 
   async closeOrder(): Promise<void> {
@@ -2229,6 +2243,58 @@ export class OrderDetailPageComponent {
     }
 
     return fallback;
+  }
+
+  private buildMissingProductsCsv(rows: OrderExportSummaryRow[]): string {
+    const header = ['EAN', 'Descrizione', 'Quantita', 'Motivo', 'Fornitori disponibili'];
+    const csvRows = rows.map((row) => [
+      this.formatSpreadsheetTextCell(row.ean),
+      row.description,
+      row.quantity === null ? '' : String(row.quantity),
+      row.missingReason ?? 'Prodotto non trovato nei fornitori caricati.',
+      String(row.availableSuppliersCount)
+    ]);
+
+    return [header, ...csvRows]
+      .map((columns) => columns.map((value) => this.escapeCsvValue(value)).join(';'))
+      .join('\r\n');
+  }
+
+  private buildMissingProductsFileName(createdAt: string): string {
+    const date = this.parseDate(createdAt);
+
+    if (!date) {
+      return 'prodotti-mancanti.csv';
+    }
+
+    const dateLabel = new Intl.DateTimeFormat('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    })
+      .format(date)
+      .replace(/\//g, '-');
+
+    return `prodotti-mancanti-${dateLabel}.csv`;
+  }
+
+  private escapeCsvValue(value: string): string {
+    const normalizedValue = value.replace(/"/g, '""');
+    return `"${normalizedValue}"`;
+  }
+
+  private formatSpreadsheetTextCell(value: string): string {
+    const normalizedValue = value.replace(/"/g, '""');
+    return `="${normalizedValue}"`;
+  }
+
+  private downloadClientFile(blob: Blob, fileName: string): void {
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
   }
 
   private openPaymentRequiredDialogIfNeeded(action: PaymentRequiredAction): boolean {

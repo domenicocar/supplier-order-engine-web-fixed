@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -282,6 +282,7 @@ export class OrdersListPageComponent {
   private readonly authStore = inject(AuthStore);
   private readonly ordersService = inject(OrdersService);
   private readonly ordersStore = inject(OrdersSessionStore);
+  private readonly router = inject(Router);
   private readonly italianShortDateFormatter = new Intl.DateTimeFormat('it-IT', {
     day: '2-digit',
     month: 'short'
@@ -328,6 +329,7 @@ export class OrdersListPageComponent {
     try {
       const response = await firstValueFrom(this.ordersService.createOrder());
       this.ordersStore.upsertOrder(response.order);
+      await this.router.navigate(['/app/orders', response.order.id]);
     } catch (error: unknown) {
       if (this.handlePaymentRequiredError(error, 'create-order')) {
         return;
