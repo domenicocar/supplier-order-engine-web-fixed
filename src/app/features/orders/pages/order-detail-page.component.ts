@@ -1,4 +1,7 @@
 import {
+  HttpErrorResponse,
+} from '@angular/common/http';
+import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
@@ -2187,6 +2190,17 @@ export class OrderDetailPageComponent {
   }
 
   private toMessage(error: unknown, fallback: string): string {
+    if (error instanceof HttpErrorResponse) {
+      const apiMessage =
+        (typeof error.error === 'string' && error.error) ||
+        (typeof error.error?.message === 'string' && error.error.message) ||
+        '';
+
+      if (apiMessage.trim().length > 0) {
+        return apiMessage;
+      }
+    }
+
     if (error instanceof Error && error.message) {
       return error.message;
     }

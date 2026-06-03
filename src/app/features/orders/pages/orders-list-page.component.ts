@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -498,6 +499,17 @@ export class OrdersListPageComponent {
   }
 
   private toMessage(error: unknown, fallback: string): string {
+    if (error instanceof HttpErrorResponse) {
+      const apiMessage =
+        (typeof error.error === 'string' && error.error) ||
+        (typeof error.error?.message === 'string' && error.error.message) ||
+        '';
+
+      if (apiMessage.trim().length > 0) {
+        return apiMessage;
+      }
+    }
+
     if (error instanceof Error && error.message) {
       return error.message;
     }
