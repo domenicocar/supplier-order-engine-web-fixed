@@ -129,12 +129,23 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                     <div class="comparison-supplier-select">
                       <div
                         class="comparison-supplier-select__card"
+                        [class.comparison-supplier-select__card--active]="hasPositiveQuantity(row)"
+                        [class.comparison-supplier-select__card--inactive]="
+                          !hasPositiveQuantity(row) && row.availableSuppliers.length > 0
+                        "
                         [class.comparison-supplier-select__card--disabled]="
                           row.availableSuppliers.length === 0
                         "
                       >
-                        <div class="comparison-supplier-select__status">
-                          <i class="pi pi-check"></i>
+                        <div
+                          class="comparison-supplier-select__status"
+                          [class.comparison-supplier-select__status--hidden]="
+                            !hasPositiveQuantity(row) && row.availableSuppliers.length > 0
+                          "
+                        >
+                          @if (hasPositiveQuantity(row)) {
+                            <i class="pi pi-check"></i>
+                          }
                         </div>
 
                         <div class="comparison-supplier-select__content">
@@ -167,11 +178,13 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                         }
                       </select>
                     </div>
-                    <div class="comparison-availability">
-                      <p class="comparison-availability__label">
-                        {{ supplierAvailabilityLabel(row.availableSuppliers.length) }}
-                      </p>
-                    </div>
+                    @if (row.availableSuppliers.length > 1) {
+                      <div class="comparison-availability">
+                        <p class="comparison-availability__label">
+                          {{ supplierAvailabilityLabel(row.availableSuppliers.length) }}
+                        </p>
+                      </div>
+                    }
                   </div>
                 </td>
                 <td class="min-w-32">
@@ -303,10 +316,24 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         gap: 0.6rem;
         min-height: 3.2rem;
         padding: 0.55rem 0.8rem;
-        border: 2px solid #447a59;
+        border: 1px solid #cbd5e1;
         border-radius: 1.1rem;
+        background: #ffffff;
+        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+      }
+
+      .comparison-supplier-select__card--active {
+        border-color: #447a59;
         background: #f4f8f5;
         box-shadow: inset 0 0 0 1px rgba(68, 122, 89, 0.08);
+      }
+
+      .comparison-supplier-select__card--inactive {
+        grid-template-columns: 0 minmax(0, 1fr) auto;
+        gap: 0.35rem;
+        border-color: #cbd5e1;
+        background: #ffffff;
+        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
       }
 
       .comparison-supplier-select__card--disabled {
@@ -322,9 +349,20 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         width: 1.2rem;
         height: 1.2rem;
         border-radius: 999px;
+        background: #e2e8f0;
+        color: #64748b;
+        font-size: 0.6rem;
+      }
+
+      .comparison-supplier-select__card--active .comparison-supplier-select__status {
         background: #447a59;
         color: #ffffff;
-        font-size: 0.6rem;
+      }
+
+      .comparison-supplier-select__status--hidden {
+        width: 0;
+        background: transparent;
+        color: transparent;
       }
 
       .comparison-supplier-select__card--disabled .comparison-supplier-select__status {
@@ -338,10 +376,14 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
 
       .comparison-supplier-select__name {
         margin: 0;
-        color: #447a59;
+        color: #16213d;
         font-size: 0.72rem;
         font-weight: 700;
         line-height: 1.2;
+      }
+
+      .comparison-supplier-select__card--active .comparison-supplier-select__name {
+        color: #447a59;
       }
 
       .comparison-supplier-select__card--disabled .comparison-supplier-select__name {
@@ -553,6 +595,10 @@ export class SupplierComparisonTabComponent {
     const value = (event.target as HTMLInputElement).value;
     this.searchTerm.set(value);
     this.currentPage.set(1);
+  }
+
+  hasPositiveQuantity(row: SupplierComparisonTableRow): boolean {
+    return typeof row.quantity === 'number' && Number.isFinite(row.quantity) && row.quantity > 0;
   }
 
   canSplitRow(row: SupplierComparisonTableRow): boolean {
