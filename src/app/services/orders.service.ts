@@ -133,17 +133,6 @@ export class OrdersService {
     );
   }
 
-  searchOrderCatalog(orderId: string, query: string): Observable<SupplierComparisonResponse> {
-    return this.api.get<unknown>('/catalog/search', {
-      params: {
-        orderId,
-        q: query
-      }
-    }).pipe(
-      map((payload) => this.normalizeSupplierComparisonResponse(payload))
-    );
-  }
-
   createProductMapping(
     orderId: string,
     payload: ProductMappingPayload

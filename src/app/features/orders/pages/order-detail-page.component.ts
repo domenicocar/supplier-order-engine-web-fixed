@@ -135,6 +135,30 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
     } @else {
       @if (order(); as currentOrder) {
         <section class="flex flex-col gap-6">
+          @if (successToastMessage()) {
+            <div class="pointer-events-none fixed bottom-4 left-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 sm:bottom-6">
+              <div class="pointer-events-auto app-alert-success flex items-start gap-3 rounded-3xl px-4 py-4 shadow-[0_18px_45px_rgba(6,95,70,0.18)]">
+                <div class="app-icon-circle mt-0.5">
+                  <i class="pi pi-check" aria-hidden="true"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-semibold">Prodotto associato</p>
+                  <p class="mt-1 text-sm">
+                    {{ successToastMessage() }}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200/80 bg-white/70 text-emerald-900 transition hover:bg-white"
+                  aria-label="Chiudi notifica"
+                  (click)="dismissSuccessToast()"
+                >
+                  <i class="pi pi-times text-xs" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+          }
+
           <div class="order-header surface-panel">
             <div class="order-header__main">
               <a
@@ -385,7 +409,31 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                   </div>
                 }
 
-                @if (catalogAssociationLoading()) {
+                @if (catalogAssociationSaving()) {
+                  <div class="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-4">
+                    <div class="flex items-center gap-3">
+                      <div class="h-10 w-10 animate-pulse rounded-2xl bg-emerald-100"></div>
+                      <div class="flex-1 space-y-2">
+                        <div class="h-4 w-40 animate-pulse rounded-full bg-slate-200"></div>
+                        <div class="h-3 w-64 max-w-full animate-pulse rounded-full bg-slate-100"></div>
+                      </div>
+                    </div>
+
+                    <div class="mt-4 space-y-3">
+                      @for (placeholder of [1, 2, 3]; track placeholder) {
+                        <div class="grid gap-3 rounded-2xl border border-[rgba(148,163,184,0.14)] bg-white px-4 py-4 md:grid-cols-[180px_minmax(0,1fr)_180px]">
+                          <div class="h-4 animate-pulse rounded-full bg-slate-200"></div>
+                          <div class="h-4 animate-pulse rounded-full bg-slate-100"></div>
+                          <div class="h-10 animate-pulse rounded-2xl bg-slate-100"></div>
+                        </div>
+                      }
+                    </div>
+
+                    <p class="mt-4 text-sm text-[var(--app-text-muted)]">
+                      Associazione prodotto in corso...
+                    </p>
+                  </div>
+                } @else if (catalogAssociationLoading()) {
                   <p class="rounded-2xl border border-dashed border-[var(--app-border-strong)] bg-[var(--app-surface-muted)] px-4 py-4 text-sm text-[var(--app-text-muted)]">
                     Ricerca catalogo in corso...
                   </p>
@@ -524,6 +572,7 @@ export class OrderDetailPageComponent {
   });
   private draftSyncTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private catalogSearchTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private successToastTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private catalogSearchRequestSequence = 0;
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
@@ -551,6 +600,7 @@ export class OrderDetailPageComponent {
   readonly catalogAssociationError = signal<string | null>(null);
   readonly pageError = signal<string | null>(null);
   readonly pageNotice = signal<string | null>(null);
+  readonly successToastMessage = signal<string | null>(null);
   readonly supplierComparisonRequested = signal(false);
   readonly supplierComparisonLoading = signal(false);
   readonly supplierComparisonError = signal<string | null>(null);
@@ -635,6 +685,7 @@ export class OrderDetailPageComponent {
     this.destroyRef.onDestroy(() => {
       this.clearDraftSyncTimeout();
       this.clearCatalogSearchTimeout();
+      this.clearSuccessToastTimeout();
     });
 
     effect(
@@ -1346,6 +1397,10 @@ export class OrderDetailPageComponent {
       );
 
       this.upsertProductMapping(orderId, mapping);
+      this.pageNotice.set(null);
+      this.showSuccessToast(
+        `Il prodotto ${sourceRow.ean} e stato mappato al catalogo e aggiunto all'ordine.`
+      );
 
       this.closeCatalogAssociationDialog();
 
@@ -1358,7 +1413,7 @@ export class OrderDetailPageComponent {
       this.activeTab.set('export');
 
       if (orderReloaded && catalogReloaded) {
-        this.pageNotice.set(`Associazione a catalogo salvata per il prodotto ${sourceRow.ean}.`);
+        this.pageNotice.set(null);
       } else if (orderReloaded) {
         this.pageNotice.set(
           `Associazione salvata per ${sourceRow.ean}. Il catalogo non si e aggiornato completamente.`
@@ -1996,6 +2051,29 @@ export class OrderDetailPageComponent {
     this.catalogSearchTimeoutId = null;
   }
 
+  dismissSuccessToast(): void {
+    this.clearSuccessToastTimeout();
+    this.successToastMessage.set(null);
+  }
+
+  private showSuccessToast(message: string): void {
+    this.clearSuccessToastTimeout();
+    this.successToastMessage.set(message);
+    this.successToastTimeoutId = setTimeout(() => {
+      this.successToastTimeoutId = null;
+      this.successToastMessage.set(null);
+    }, 8000);
+  }
+
+  private clearSuccessToastTimeout(): void {
+    if (this.successToastTimeoutId === null) {
+      return;
+    }
+
+    clearTimeout(this.successToastTimeoutId);
+    this.successToastTimeoutId = null;
+  }
+
   private async refreshOrderAfterGenericImport(
     orderId: string,
     importResponse: ImportOrderFileResponse
@@ -2067,10 +2145,12 @@ export class OrderDetailPageComponent {
     const normalizedQuery = query.trim();
     const cachedCatalogRows = this.getCachedCatalogRows();
 
-    if (normalizedQuery.length === 0 && cachedCatalogRows.length > 0) {
+    if (cachedCatalogRows.length > 0) {
       this.catalogAssociationLoading.set(false);
       this.catalogAssociationError.set(null);
-      this.catalogAssociationResults.set(this.deduplicateCatalogRows(cachedCatalogRows));
+      this.catalogAssociationResults.set(
+        this.filterCatalogRows(this.deduplicateCatalogRows(cachedCatalogRows), normalizedQuery)
+      );
       return;
     }
 
@@ -2079,17 +2159,15 @@ export class OrderDetailPageComponent {
     this.catalogAssociationError.set(null);
 
     try {
-      const response = await firstValueFrom(
-        normalizedQuery.length > 0
-          ? this.ordersService.searchOrderCatalog(orderId, normalizedQuery)
-          : this.ordersService.getOrderCatalog(orderId)
-      );
+      const response = await firstValueFrom(this.ordersService.getOrderCatalog(orderId));
 
       if (requestSequence !== this.catalogSearchRequestSequence) {
         return;
       }
 
-      this.catalogAssociationResults.set(this.deduplicateCatalogRows(response.rows));
+      const catalogRows = this.deduplicateCatalogRows(response.rows);
+      this.ordersStore.setSupplierComparisonRows(orderId, catalogRows);
+      this.catalogAssociationResults.set(this.filterCatalogRows(catalogRows, normalizedQuery));
     } catch (error: unknown) {
       if (requestSequence !== this.catalogSearchRequestSequence) {
         return;
@@ -2140,6 +2218,40 @@ export class OrderDetailPageComponent {
     }
 
     return Array.from(uniqueRows.values());
+  }
+
+  private filterCatalogRows(
+    rows: SupplierComparisonRow[],
+    query: string
+  ): SupplierComparisonRow[] {
+    const normalizedQuery = this.normalizeCatalogSearchValue(query);
+
+    if (!normalizedQuery) {
+      return rows;
+    }
+
+    const queryTerms = normalizedQuery.split(' ').filter((term) => term.length > 0);
+
+    return rows.filter((row) => {
+      const searchableContent = this.normalizeCatalogSearchValue([
+        row.ean,
+        row.description,
+        row.sourceEan,
+        row.sourceDescription,
+        ...row.availableSuppliers.map((supplier) => supplier.supplierName)
+      ].filter((value): value is string => Boolean(value)).join(' '));
+
+      return queryTerms.every((term) => searchableContent.includes(term));
+    });
+  }
+
+  private normalizeCatalogSearchValue(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLocaleLowerCase('it-IT')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   private async syncDraftItems(): Promise<void> {
