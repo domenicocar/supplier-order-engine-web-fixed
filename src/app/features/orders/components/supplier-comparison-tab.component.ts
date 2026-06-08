@@ -5,8 +5,7 @@ import { TableModule } from 'primeng/table';
 import { SupplierComparisonTableRow } from './order-detail-view.models';
 import {
   formatPrice,
-  formatSupplierOption,
-  supplierAvailabilityLabel
+  formatSupplierOption
 } from './order-detail-view.utils';
 
 const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
@@ -133,6 +132,12 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                         [class.comparison-supplier-select__card--inactive]="
                           !hasPositiveQuantity(row) && row.availableSuppliers.length > 0
                         "
+                        [class.comparison-supplier-select__card--with-badge]="
+                          hasSupplierCountBadge(row)
+                        "
+                        [class.comparison-supplier-select__card--without-badge]="
+                          !hasSupplierCountBadge(row)
+                        "
                         [class.comparison-supplier-select__card--disabled]="
                           row.availableSuppliers.length === 0
                         "
@@ -157,10 +162,11 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                           </p>
                         </div>
 
-                        <i
-                          class="pi pi-chevron-down comparison-supplier-select__chevron"
-                          aria-hidden="true"
-                        ></i>
+                        @if (hasSupplierCountBadge(row)) {
+                          <span class="comparison-supplier-select__badge">
+                            {{ row.availableSuppliers.length }}
+                          </span>
+                        }
                       </div>
 
                       <select
@@ -178,13 +184,6 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                         }
                       </select>
                     </div>
-                    @if (row.availableSuppliers.length > 1) {
-                      <div class="comparison-availability">
-                        <p class="comparison-availability__label">
-                          {{ supplierAvailabilityLabel(row.availableSuppliers.length) }}
-                        </p>
-                      </div>
-                    }
                   </div>
                 </td>
                 <td class="min-w-32">
@@ -314,8 +313,8 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
         gap: 0.6rem;
-        min-height: 3.2rem;
-        padding: 0.55rem 0.8rem;
+        min-height: 2.5rem;
+        padding: 0.22rem 0.75rem;
         border: 1px solid #cbd5e1;
         border-radius: 1.1rem;
         background: #ffffff;
@@ -336,6 +335,14 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
       }
 
+      .comparison-supplier-select__card--without-badge {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .comparison-supplier-select__card--inactive.comparison-supplier-select__card--without-badge {
+        grid-template-columns: 0 minmax(0, 1fr);
+      }
+
       .comparison-supplier-select__card--disabled {
         border-color: #cbd5e1;
         background: #f8fafc;
@@ -346,12 +353,12 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 1.2rem;
-        height: 1.2rem;
+        width: 1rem;
+        height: 1rem;
         border-radius: 999px;
         background: #e2e8f0;
         color: #64748b;
-        font-size: 0.6rem;
+        font-size: 0.55rem;
       }
 
       .comparison-supplier-select__card--active .comparison-supplier-select__status {
@@ -377,9 +384,9 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
       .comparison-supplier-select__name {
         margin: 0;
         color: #16213d;
-        font-size: 0.72rem;
+        font-size: 0.7rem;
         font-weight: 700;
-        line-height: 1.2;
+        line-height: 1.1;
       }
 
       .comparison-supplier-select__card--active .comparison-supplier-select__name {
@@ -391,16 +398,26 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
       }
 
       .comparison-supplier-select__price {
-        margin: 0.15rem 0 0;
+        margin: 0.02rem 0 0;
         color: #16213d;
-        font-size: 0.72rem;
+        font-size: 0.7rem;
         font-weight: 500;
-        line-height: 1.2;
+        line-height: 1.1;
       }
 
-      .comparison-supplier-select__chevron {
-        color: #16213d;
-        font-size: 0.85rem;
+      .comparison-supplier-select__badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.65rem;
+        height: 1.65rem;
+        padding: 0 0.45rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #475569;
+        font-size: 0.7rem;
+        font-weight: 700;
       }
 
       .comparison-supplier-select__native {
@@ -553,7 +570,6 @@ export class SupplierComparisonTabComponent {
 
   readonly formatPrice = formatPrice;
   readonly formatSupplierOption = formatSupplierOption;
-  readonly supplierAvailabilityLabel = supplierAvailabilityLabel;
   readonly trackByEan = (_index: number, row: SupplierComparisonTableRow) => row.lineId;
   private readonly euroFormatter = new Intl.NumberFormat('it-IT', {
     style: 'currency',
@@ -599,6 +615,10 @@ export class SupplierComparisonTabComponent {
 
   hasPositiveQuantity(row: SupplierComparisonTableRow): boolean {
     return typeof row.quantity === 'number' && Number.isFinite(row.quantity) && row.quantity > 0;
+  }
+
+  hasSupplierCountBadge(row: SupplierComparisonTableRow): boolean {
+    return row.availableSuppliers.length > 1;
   }
 
   canSplitRow(row: SupplierComparisonTableRow): boolean {
