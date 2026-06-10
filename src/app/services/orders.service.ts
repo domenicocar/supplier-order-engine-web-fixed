@@ -144,7 +144,7 @@ export class OrdersService {
 
   createOrderSupplier(
     orderId: string,
-    payload: SupplierDefinition | { name: string; active?: boolean }
+    payload: SupplierDefinition | { name: string; active?: boolean; preferred?: boolean }
   ): Observable<SupplierDefinition> {
     return this.api.post<unknown>(`/orders/${orderId}/suppliers`, payload).pipe(
       map((response) => {
@@ -156,6 +156,25 @@ export class OrdersService {
         };
       })
     );
+  }
+
+  setPreferredOrderSupplier(
+    orderId: string,
+    supplierId: string,
+    preferred: boolean
+  ): Observable<SupplierDefinition> {
+    return this.api
+      .post<unknown>(`/orders/${orderId}/suppliers/${supplierId}/preferred`, { preferred })
+      .pipe(
+        map((response) => {
+          const supplier = this.normalizeSupplierDefinition(response);
+          return supplier ?? {
+            id: supplierId,
+            name: supplierId,
+            preferred
+          };
+        })
+      );
   }
 
   syncOrderItems(
@@ -831,7 +850,15 @@ export class OrdersService {
           return -1;
         }
 
-        return left.price - right.price;
+        if (left.price !== right.price) {
+          return left.price - right.price;
+        }
+
+        if ((left.preferred ?? false) !== (right.preferred ?? false)) {
+          return left.preferred ? -1 : 1;
+        }
+
+        return left.supplierName.localeCompare(right.supplierName);
       });
       const bestOffer =
         this.normalizeSupplierComparisonOffer(this.pickValue(entry, ['bestOffer', 'lowestOffer'])) ??
@@ -939,6 +966,7 @@ export class OrdersService {
         this.pickNumber(value, ['packageSize', 'package_size', 'packSize', 'cf', 'conf']) ?? 1,
       netPrice: this.pickNumber(value, ['netPrice', 'net_price']),
       grossPrice: this.pickNumber(value, ['grossPrice', 'gross_price']),
+      preferred: this.pickBoolean(value, ['preferred', 'isPreferred', 'is_preferred']) ?? false,
       price: this.pickNumber(value, [
         'price',
         'prezzo',
@@ -996,6 +1024,8 @@ export class OrdersService {
       name,
       code: this.pickString(candidate, ['code']),
       active: this.pickBoolean(candidate, ['active']) ?? true,
+      preferred:
+        this.pickBoolean(candidate, ['preferred', 'isPreferred', 'is_preferred']) ?? false,
       latestUpload: this.normalizeSupplierLatestUpload(
         this.pickValue(candidate, ['latestUpload', 'latest_upload', 'upload'])
       ),

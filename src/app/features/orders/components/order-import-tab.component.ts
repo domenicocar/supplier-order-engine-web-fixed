@@ -37,6 +37,7 @@ type DraftSupplierCard = {
   id: string;
   name: string;
   error: string | null;
+  preferred: boolean;
 };
 
 @Component({
@@ -448,16 +449,38 @@ type DraftSupplierCard = {
           <div class="mt-6 grid gap-5 xl:grid-cols-2">
             @for (draftSupplier of draftSuppliers(); track draftSupplier.id) {
               <div class="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
-                <div class="flex items-center gap-3">
-                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]">
-                    <i class="pi pi-file-edit text-sm" aria-hidden="true"></i>
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex min-w-0 items-center gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]">
+                      <i class="pi pi-file-edit text-sm" aria-hidden="true"></i>
+                    </div>
+                    <div class="min-w-0">
+                      <h3 class="text-base font-semibold text-[var(--app-text)]">Nuovo fornitore</h3>
+                      <p class="text-xs text-[var(--app-text-muted)]">
+                        Inserisci il nome e carica il primo listino.
+                      </p>
+                    </div>
                   </div>
-                  <div class="min-w-0">
-                    <h3 class="text-base font-semibold text-[var(--app-text)]">Nuovo fornitore</h3>
-                    <p class="text-xs text-[var(--app-text-muted)]">
-                      Inserisci il nome e carica il primo listino.
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-50"
+                    [class]="draftSupplier.preferred
+                      ? 'border-[var(--app-success-border)] bg-[var(--app-success-bg)] text-[var(--app-success-text)]'
+                      : 'border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:border-[var(--app-success-border)] hover:text-[var(--app-success-text)]'"
+                    [disabled]="isDraftSupplierBusy(draftSupplier.id)"
+                    title="A parita di prezzo viene scelto il fornitore favorito. Una scelta manuale mantiene sempre la priorita."
+                    [attr.aria-label]="draftSupplier.preferred ? 'Rimuovi fornitore favorito' : 'Imposta fornitore favorito'"
+                    (click)="onDraftSupplierPreferredChange(draftSupplier.id, !draftSupplier.preferred)"
+                  >
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <path
+                        [attr.fill]="draftSupplier.preferred ? 'currentColor' : 'none'"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M11.48 3.5a.56.56 0 0 1 1.04 0l2.1 5.36a.56.56 0 0 0 .47.35l5.74.43a.56.56 0 0 1 .32.98l-4.37 3.74a.56.56 0 0 0-.18.56l1.33 5.6a.56.56 0 0 1-.84.61L12.3 18.2a.56.56 0 0 0-.6 0l-4.88 2.93a.56.56 0 0 1-.84-.61l1.33-5.6a.56.56 0 0 0-.18-.56L2.76 10.6a.56.56 0 0 1 .32-.98l5.74-.43a.56.56 0 0 0 .47-.35z"
+                      />
+                    </svg>
+                  </button>
                 </div>
 
                 <div class="mt-4">
@@ -534,24 +557,46 @@ type DraftSupplierCard = {
 
             @for (supplier of suppliers(); track supplier.id) {
               <div class="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
-                <div class="flex items-center gap-3">
-                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--brand-tertiary-soft)] text-[#1f6a46]">
-                    <i class="pi pi-shop text-sm" aria-hidden="true"></i>
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex min-w-0 items-center gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--brand-tertiary-soft)] text-[#1f6a46]">
+                      <i class="pi pi-shop text-sm" aria-hidden="true"></i>
+                    </div>
+                    <div class="min-w-0">
+                      <h3 class="text-base font-semibold text-[var(--app-text)]">
+                        {{ supplier.name }}
+                      </h3>
+                      @if (supplier.code) {
+                        <p class="text-xs uppercase tracking-[0.16em] text-[var(--app-text-muted)]">
+                          {{ supplier.code }}
+                        </p>
+                      } @else {
+                        <p class="text-xs text-[var(--app-text-muted)]">
+                          Carica o aggiorna il listino del fornitore.
+                        </p>
+                      }
+                    </div>
                   </div>
-                  <div class="min-w-0">
-                    <h3 class="text-base font-semibold text-[var(--app-text)]">
-                      {{ supplier.name }}
-                    </h3>
-                    @if (supplier.code) {
-                      <p class="text-xs uppercase tracking-[0.16em] text-[var(--app-text-muted)]">
-                        {{ supplier.code }}
-                      </p>
-                    } @else {
-                      <p class="text-xs text-[var(--app-text-muted)]">
-                        Carica o aggiorna il listino del fornitore.
-                      </p>
-                    }
-                  </div>
+                  <button
+                    type="button"
+                    class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-50"
+                    [class]="(supplier.preferred ?? false)
+                      ? 'border-[var(--app-success-border)] bg-[var(--app-success-bg)] text-[var(--app-success-text)]'
+                      : 'border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:border-[var(--app-success-border)] hover:text-[var(--app-success-text)]'"
+                    [disabled]="supplierPreferenceUpdatingId() !== null"
+                    title="A parita di prezzo viene scelto il fornitore favorito. Una scelta manuale mantiene sempre la priorita."
+                    [attr.aria-label]="(supplier.preferred ?? false) ? 'Rimuovi fornitore favorito' : 'Imposta fornitore favorito'"
+                    (click)="supplierPreferredChanged.emit({ supplierId: supplier.id, preferred: !(supplier.preferred ?? false) })"
+                  >
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <path
+                        [attr.fill]="(supplier.preferred ?? false) ? 'currentColor' : 'none'"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M11.48 3.5a.56.56 0 0 1 1.04 0l2.1 5.36a.56.56 0 0 0 .47.35l5.74.43a.56.56 0 0 1 .32.98l-4.37 3.74a.56.56 0 0 0-.18.56l1.33 5.6a.56.56 0 0 1-.84.61L12.3 18.2a.56.56 0 0 0-.6 0l-4.88 2.93a.56.56 0 0 1-.84-.61l1.33-5.6a.56.56 0 0 0-.18-.56L2.76 10.6a.56.56 0 0 1 .32-.98l5.74-.43a.56.56 0 0 0 .47-.35z"
+                      />
+                    </svg>
+                  </button>
                 </div>
 
                 <div class="mt-4">
@@ -784,6 +829,7 @@ export class OrderImportTabComponent {
     Record<string, SupplierUploadPreviewState>
   >({});
   readonly supplierCreating = input(false);
+  readonly supplierPreferenceUpdatingId = input<string | null>(null);
   readonly supplierComparisonLoading = input(false);
   readonly hasSupplierUploads = input(false);
 
@@ -796,8 +842,10 @@ export class OrderImportTabComponent {
     draftId: string;
     name: string;
     file: File;
+    preferred: boolean;
   }>();
   readonly supplierFileSelected = output<{ supplierId: string; file: File }>();
+  readonly supplierPreferredChanged = output<{ supplierId: string; preferred: boolean }>();
   readonly supplierMappingPreviewRequested = output<{
     supplierId: string;
     file: File;
@@ -978,6 +1026,7 @@ export class OrderImportTabComponent {
         id: this.nextDraftSupplierId(),
         name: '',
         error: null,
+        preferred: false,
       },
     ]);
   }
@@ -993,6 +1042,20 @@ export class OrderImportTabComponent {
             }
           : draftSupplier,
       ),
+    );
+  }
+
+  onDraftSupplierPreferredChange(draftSupplierId: string, preferred: boolean): void {
+    this.draftSuppliers.update((draftSuppliers) =>
+      draftSuppliers.map((draftSupplier) => ({
+        ...draftSupplier,
+        preferred:
+          draftSupplier.id === draftSupplierId
+            ? preferred
+            : preferred
+              ? false
+              : draftSupplier.preferred,
+      }))
     );
   }
 
@@ -1039,6 +1102,7 @@ export class OrderImportTabComponent {
       draftId: draftSupplierId,
       name: supplierName,
       file,
+      preferred: draftSupplier.preferred,
     });
     inputElement.value = '';
   }

@@ -142,6 +142,7 @@ export interface SupplierComparisonOffer {
   price: number | null;
   netPrice: number | null;
   grossPrice: number | null;
+  preferred?: boolean;
 }
 
 export interface SupplierComparisonRow {

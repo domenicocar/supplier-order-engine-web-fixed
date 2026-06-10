@@ -9,6 +9,7 @@ export interface SupplierDefinition {
     uploadedAt: string | null;
   } | null;
   name: string;
+  preferred?: boolean;
   slug?: string;
 }
 
@@ -20,4 +21,5 @@ export interface SupplierStoredFile {
 
 export interface SupplierCreatePayload {
   name: string;
+  preferred?: boolean;
 }

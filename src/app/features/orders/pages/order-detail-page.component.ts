@@ -253,12 +253,14 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                     [pendingSupplierDraftState]="pendingSupplierDraftState()"
                     [supplierPreviewState]="supplierPreviewState()"
                     [supplierCreating]="supplierCreating()"
+                    [supplierPreferenceUpdatingId]="supplierPreferenceUpdatingId()"
                     [supplierComparisonLoading]="supplierComparisonLoading()"
                     [hasSupplierUploads]="hasSupplierUploads()"
                     (orderFileSelected)="onOrderFileSelected($event)"
                     (orderImportConfirmed)="onOrderImportConfirmed($event)"
                     (supplierDraftFileSelected)="onSupplierDraftFileSelected($event)"
                     (supplierFileSelected)="onSupplierFileSelected($event)"
+                    (supplierPreferredChanged)="onSupplierPreferredChanged($event)"
                     (supplierMappingPreviewRequested)="onSupplierMappingPreviewRequested($event)"
                     (supplierMappingConfirmed)="onSupplierMappingConfirmed($event)"
                     (supplierComparisonRequested)="loadSupplierComparison()"
@@ -612,6 +614,7 @@ export class OrderDetailPageComponent {
   readonly supplierUploadState = signal<Record<string, UploadCardState>>({});
   readonly supplierPreviewState = signal<Record<string, SupplierUploadPreviewState>>({});
   readonly supplierCreating = signal(false);
+  readonly supplierPreferenceUpdatingId = signal<string | null>(null);
   readonly fetchedOrderIds = signal<Record<string, boolean>>({});
   readonly autoComparisonAttemptedOrderIds = signal<Record<string, boolean>>({});
   readonly supplierAvailabilityLabel = supplierAvailabilityLabel;
@@ -851,6 +854,7 @@ export class OrderDetailPageComponent {
     draftId: string;
     name: string;
     file: File;
+    preferred: boolean;
   }): Promise<void> {
     if (this.isReadOnlyOrder()) {
       return;
@@ -875,7 +879,8 @@ export class OrderDetailPageComponent {
     try {
       const createdSupplier = await firstValueFrom(
         this.ordersService.createOrderSupplier(orderId, {
-          name: supplierName
+          name: supplierName,
+          preferred: payload.preferred
         })
       );
       this.upsertSupplier(orderId, createdSupplier);
@@ -898,6 +903,44 @@ export class OrderDetailPageComponent {
       });
     } finally {
       this.supplierCreating.set(false);
+    }
+  }
+
+  async onSupplierPreferredChanged(payload: {
+    supplierId: string;
+    preferred: boolean;
+  }): Promise<void> {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
+    const orderId = this.orderId();
+
+    if (!orderId) {
+      return;
+    }
+
+    this.supplierPreferenceUpdatingId.set(payload.supplierId);
+    this.pageError.set(null);
+
+    try {
+      await firstValueFrom(
+        this.ordersService.setPreferredOrderSupplier(
+          orderId,
+          payload.supplierId,
+          payload.preferred
+        )
+      );
+      const refreshedOrder = await firstValueFrom(this.ordersService.getOrderById(orderId));
+      this.ordersStore.upsertOrder(refreshedOrder.order);
+      this.supplierComparisonRequested.set(false);
+      this.ordersStore.setSupplierComparisonRows(orderId, []);
+    } catch (error: unknown) {
+      this.pageError.set(
+        this.toMessage(error, 'Non sono riuscito ad aggiornare il fornitore favorito.')
+      );
+    } finally {
+      this.supplierPreferenceUpdatingId.set(null);
     }
   }
 
@@ -1695,11 +1738,14 @@ export class OrderDetailPageComponent {
 
   private upsertSupplier(orderId: string, supplier: SupplierDefinition): void {
     const currentOrder = this.order();
+    const otherSuppliers = (currentOrder?.suppliers ?? [])
+      .filter((currentSupplier) => currentSupplier.id !== supplier.id)
+      .map((currentSupplier) =>
+        supplier.preferred ? { ...currentSupplier, preferred: false } : currentSupplier
+      );
     const nextSuppliers = [
       supplier,
-      ...(currentOrder?.suppliers ?? []).filter(
-        (currentSupplier) => currentSupplier.id !== supplier.id
-      )
+      ...otherSuppliers
     ];
 
     this.ordersStore.upsertOrder({
