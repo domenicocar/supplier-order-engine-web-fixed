@@ -259,6 +259,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                     (orderImportConfirmed)="onOrderImportConfirmed($event)"
                     (supplierDraftFileSelected)="onSupplierDraftFileSelected($event)"
                     (supplierFileSelected)="onSupplierFileSelected($event)"
+                    (supplierMappingPreviewRequested)="onSupplierMappingPreviewRequested($event)"
                     (supplierMappingConfirmed)="onSupplierMappingConfirmed($event)"
                     (supplierComparisonRequested)="loadSupplierComparison()"
                   />
@@ -915,6 +916,21 @@ export class OrderDetailPageComponent {
     });
   }
 
+  async onSupplierMappingPreviewRequested(payload: {
+    supplierId: string;
+    file: File;
+    mapping: SupplierColumnMapping;
+  }): Promise<void> {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
+    await this.uploadSupplierFile(payload.supplierId, payload.file, {
+      mapping: payload.mapping,
+      persistMapping: false
+    });
+  }
+
   async onSupplierCreateRequested(payload: SupplierCreatePayload): Promise<void> {
     if (this.isReadOnlyOrder()) {
       return;
@@ -979,9 +995,16 @@ export class OrderDetailPageComponent {
     this.pageError.set(null);
     this.setSupplierPreviewState(supplierId, {
       file,
-      preview: options?.persistMapping ? this.supplierPreviewState()[supplierId]?.preview ?? null : null,
-      mapping: options?.mapping ?? this.supplierPreviewState()[supplierId]?.mapping ?? null,
+      preview:
+        options?.mapping || options?.persistMapping
+          ? this.supplierPreviewState()[supplierId]?.preview ?? null
+          : null,
+      mapping:
+        options?.persistMapping
+          ? options.mapping ?? this.supplierPreviewState()[supplierId]?.mapping ?? null
+          : this.supplierPreviewState()[supplierId]?.mapping ?? null,
       confirming: !!options?.persistMapping,
+      previewing: !!options?.mapping && !options?.persistMapping,
       error: null
     });
 
@@ -1010,8 +1033,9 @@ export class OrderDetailPageComponent {
         this.setSupplierPreviewState(supplierId, {
           file,
           preview: response.preview ?? null,
-          mapping: response.preview?.detectedMapping ?? null,
+          mapping: options?.mapping ?? response.preview?.detectedMapping ?? null,
           confirming: false,
+          previewing: false,
           error: null
         });
         this.setSupplierUploadState(supplierId, {
@@ -1027,8 +1051,9 @@ export class OrderDetailPageComponent {
       this.setSupplierPreviewState(supplierId, {
         file,
         preview: this.supplierPreviewState()[supplierId]?.preview ?? null,
-        mapping: options?.mapping ?? this.supplierPreviewState()[supplierId]?.mapping ?? null,
+        mapping: this.supplierPreviewState()[supplierId]?.mapping ?? null,
         confirming: false,
+        previewing: false,
         error: message
       });
       this.setSupplierUploadState(supplierId, {
@@ -1671,9 +1696,11 @@ export class OrderDetailPageComponent {
   private upsertSupplier(orderId: string, supplier: SupplierDefinition): void {
     const currentOrder = this.order();
     const nextSuppliers = [
-      ...(currentOrder?.suppliers ?? []).filter((currentSupplier) => currentSupplier.id !== supplier.id),
-      supplier
-    ].sort((left, right) => left.name.localeCompare(right.name));
+      supplier,
+      ...(currentOrder?.suppliers ?? []).filter(
+        (currentSupplier) => currentSupplier.id !== supplier.id
+      )
+    ];
 
     this.ordersStore.upsertOrder({
       ...(currentOrder ?? {
@@ -1723,9 +1750,7 @@ export class OrderDetailPageComponent {
       }
     }
 
-    return Array.from(resolvedSuppliers.values()).sort((left, right) =>
-      left.name.localeCompare(right.name)
-    );
+    return Array.from(resolvedSuppliers.values());
   }
 
   private buildSupplierComparisonTableRows(): SupplierComparisonTableRow[] {

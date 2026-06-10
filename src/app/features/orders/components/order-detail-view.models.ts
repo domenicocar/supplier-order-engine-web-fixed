@@ -82,5 +82,6 @@ export interface SupplierUploadPreviewState {
   preview: SupplierUploadPreview | null;
   mapping: SupplierColumnMapping | null;
   confirming: boolean;
+  previewing: boolean;
   error?: string | null;
 }

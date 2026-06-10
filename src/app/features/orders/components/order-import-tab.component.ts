@@ -703,30 +703,54 @@ type DraftSupplierCard = {
                           </div>
                         </div>
 
-                        <div class="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-sm text-[var(--app-text-muted)]">
-                          @if (preview.previewRow) {
-                            <p><strong>EAN:</strong> {{ preview.previewRow.ean }}</p>
-                            <p><strong>Descrizione:</strong> {{ preview.previewRow.description }}</p>
-                            <p><strong>Prezzo netto:</strong> {{ preview.previewRow.netPrice }}</p>
-                          } @else {
-                            <p>Nessuna riga leggibile con il mapping attuale.</p>
-                          }
-                          <p class="mt-2 text-xs text-[var(--app-text-muted)]">
-                            {{ preview.importedProductsCount }} prodotti letti.
-                          </p>
-                        </div>
-
-                        @if (previewState.error) {
+                        @if (previewState.previewing) {
+                          <div class="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-sm text-[var(--app-text-muted)]">
+                            <div class="animate-pulse space-y-3" aria-label="Verifica anteprima in corso">
+                              <div class="h-4 w-2/5 rounded-full bg-slate-200"></div>
+                              <div class="h-4 w-4/5 rounded-full bg-slate-200"></div>
+                              <div class="h-4 w-1/3 rounded-full bg-slate-200"></div>
+                              <div class="h-4 w-1/4 rounded-full bg-slate-200"></div>
+                              <div class="mt-4 h-3 w-1/3 rounded-full bg-slate-100"></div>
+                            </div>
+                          </div>
+                        } @else if (preview.previewRow && preview.importedProductsCount > 0) {
+                          <div class="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-sm text-[var(--app-text-muted)]">
+                              <p><strong>EAN:</strong> {{ preview.previewRow.ean }}</p>
+                              <p><strong>Descrizione:</strong> {{ preview.previewRow.description }}</p>
+                              <p><strong>Pack size:</strong> {{ preview.previewRow.packageSize }}</p>
+                              <p><strong>Prezzo netto:</strong> {{ preview.previewRow.netPrice }}</p>
+                              <p class="mt-2 text-xs text-[var(--app-text-muted)]">
+                                {{ preview.importedProductsCount }} prodotti letti.
+                              </p>
+                          </div>
+                        } @else {
                           <div class="app-alert-error">
-                            {{ previewState.error }}
+                            <p>Nessuna riga leggibile con il mapping attuale.</p>
+                            <p class="mt-1 text-xs">0 prodotti letti.</p>
                           </div>
                         }
 
-                        <div class="flex justify-end">
+                        @if (!previewState.previewing) {
+                          @if (previewState.error) {
+                            <div class="app-alert-error">
+                              {{ previewState.error }}
+                            </div>
+                          }
+                        }
+
+                        <div class="flex flex-wrap justify-end gap-3">
+                          <button
+                            type="button"
+                            class="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-2 text-sm font-semibold text-[var(--app-text)] transition hover:border-[var(--brand-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                            [disabled]="!hasValidSupplierMapping(supplier.id) || previewState.previewing || previewState.confirming"
+                            (click)="previewSupplierMapping(supplier.id)"
+                          >
+                            {{ previewState.previewing ? 'Verifica in corso...' : 'Verifica anteprima' }}
+                          </button>
                           <button
                             type="button"
                             class="app-primary-action px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                            [disabled]="!canConfirmSupplierMapping(supplier.id) || previewState.confirming"
+                            [disabled]="!canConfirmSupplierMapping(supplier.id) || previewState.previewing || previewState.confirming"
                             (click)="confirmSupplierMapping(supplier.id)"
                           >
                             {{ previewState.confirming ? 'Salvataggio...' : 'Conferma mapping' }}
@@ -774,6 +798,11 @@ export class OrderImportTabComponent {
     file: File;
   }>();
   readonly supplierFileSelected = output<{ supplierId: string; file: File }>();
+  readonly supplierMappingPreviewRequested = output<{
+    supplierId: string;
+    file: File;
+    mapping: SupplierColumnMapping;
+  }>();
   readonly supplierMappingConfirmed = output<{
     supplierId: string;
     file: File;
@@ -1094,6 +1123,24 @@ export class OrderImportTabComponent {
     });
   }
 
+  previewSupplierMapping(supplierId: string): void {
+    const previewState = this.supplierPreviewState()[supplierId];
+    const mapping = this.supplierDraftMapping(supplierId);
+
+    if (!previewState?.file || !mapping) {
+      return;
+    }
+
+    this.supplierMappingPreviewRequested.emit({
+      supplierId,
+      file: previewState.file,
+      mapping: {
+        ...mapping,
+        supplierId,
+      },
+    });
+  }
+
   canConfirmOrderImport(): boolean {
     const preview = this.orderImportPreviewState()?.preview;
 
@@ -1114,6 +1161,28 @@ export class OrderImportTabComponent {
   }
 
   canConfirmSupplierMapping(supplierId: string): boolean {
+    const previewState = this.supplierPreviewState()[supplierId];
+
+    return !!(
+      this.hasValidSupplierMapping(supplierId) &&
+      previewState?.preview &&
+      previewState.preview.importedProductsCount > 0 &&
+      this.isSupplierMappingVerified(supplierId)
+    );
+  }
+
+  isSupplierMappingVerified(supplierId: string): boolean {
+    const previewState = this.supplierPreviewState()[supplierId];
+    const mapping = this.supplierDraftMapping(supplierId);
+
+    return !!(
+      mapping &&
+      previewState?.mapping &&
+      this.areSupplierMappingsEqual(mapping, previewState.mapping)
+    );
+  }
+
+  hasValidSupplierMapping(supplierId: string): boolean {
     const mapping = this.supplierDraftMapping(supplierId);
 
     return !!(
@@ -1200,6 +1269,20 @@ export class OrderImportTabComponent {
     const label =
       option.label.trim().length > 0 ? option.label : 'Colonna senza nome';
     return `${option.columnLetter} - ${label}`;
+  }
+
+  private areSupplierMappingsEqual(
+    left: SupplierColumnMapping,
+    right: SupplierColumnMapping,
+  ): boolean {
+    return (
+      left.headerRowIndex === right.headerRowIndex &&
+      left.eanColumnIndex === right.eanColumnIndex &&
+      left.descriptionColumnIndex === right.descriptionColumnIndex &&
+      left.packageSizeColumnIndex === right.packageSizeColumnIndex &&
+      left.netPriceColumnIndex === right.netPriceColumnIndex &&
+      left.grossPriceColumnIndex === right.grossPriceColumnIndex
+    );
   }
 
   uploadCardClass(status: UploadCardStatus): string {
