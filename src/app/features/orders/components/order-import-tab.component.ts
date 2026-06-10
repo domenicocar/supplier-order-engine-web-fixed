@@ -790,7 +790,7 @@ type DraftSupplierCard = {
                             [disabled]="!hasValidSupplierMapping(supplier.id) || previewState.previewing || previewState.confirming"
                             (click)="previewSupplierMapping(supplier.id)"
                           >
-                            {{ previewState.previewing ? 'Verifica in corso...' : 'Verifica anteprima' }}
+                            {{ previewState.previewing ? 'Verifica mapping in corso...' : 'Verifica mapping' }}
                           </button>
                           <button
                             type="button"

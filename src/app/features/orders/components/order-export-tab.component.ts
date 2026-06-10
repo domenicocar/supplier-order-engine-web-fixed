@@ -227,6 +227,18 @@ import { formatPrice } from './order-detail-view.utils';
                             >
                               <p class="supplier-table__product-name">
                                 {{ item.description }}
+                                @if (item.selectedBecausePreferredTie) {
+                                  <span
+                                    class="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-[var(--app-success-border)] bg-[var(--app-success-bg)] text-[var(--app-success-text)] align-middle"
+                                    title="Scelto per preferenza fornitore a parita di prezzo."
+                                  >
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                      <path
+                                        d="M11.48 3.5a.56.56 0 0 1 1.04 0l2.1 5.36a.56.56 0 0 0 .47.35l5.74.43a.56.56 0 0 1 .32.98l-4.37 3.74a.56.56 0 0 0-.18.56l1.33 5.6a.56.56 0 0 1-.84.61L12.3 18.2a.56.56 0 0 0-.6 0l-4.88 2.93a.56.56 0 0 1-.84-.61l1.33-5.6a.56.56 0 0 0-.18-.56L2.76 10.6a.56.56 0 0 1 .32-.98l5.74-.43a.56.56 0 0 0 .47-.35z"
+                                      />
+                                    </svg>
+                                  </span>
+                                }
                               </p>
                               @if (item.packageSize > 1) {
                                 <p class="supplier-table__product-meta">

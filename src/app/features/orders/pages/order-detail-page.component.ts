@@ -27,6 +27,7 @@ import {
   ReviewItem,
   SessionOrder,
   SupplierColumnMapping,
+  SupplierComparisonOffer,
   SupplierComparisonRow
 } from '../../../models/order.models';
 import { SupplierCreatePayload, SupplierDefinition } from '../../../models/supplier.models';
@@ -1610,6 +1611,7 @@ export class OrderDetailPageComponent {
           lineTotal,
           foundInSuppliers,
           availableSuppliersCount: row.availableSuppliers.length,
+          selectedBecausePreferredTie: this.isPreferredTieSelection(row),
           missingReason: foundInSuppliers ? undefined : 'Non trovato nei listini dei fornitori caricati'
         };
       });
@@ -2441,6 +2443,50 @@ export class OrderDetailPageComponent {
     return [header, ...csvRows]
       .map((columns) => columns.map((value) => this.escapeCsvValue(value)).join(';'))
       .join('\r\n');
+  }
+
+  private isPreferredTieSelection(row: SupplierComparisonTableRow): boolean {
+    const selectedSupplierId = row.selectedSupplierId?.trim();
+
+    if (!selectedSupplierId) {
+      return false;
+    }
+
+    const selectedSupplier = row.availableSuppliers.find(
+      (supplier) => supplier.supplierId === selectedSupplierId
+    );
+
+    if (!selectedSupplier?.preferred) {
+      return false;
+    }
+
+    const selectedPrice = this.resolveComparableOfferPrice(selectedSupplier);
+
+    if (selectedPrice === null) {
+      return false;
+    }
+
+    return row.availableSuppliers.some((supplier) => {
+      if (supplier.supplierId === selectedSupplierId) {
+        return false;
+      }
+
+      const supplierPrice = this.resolveComparableOfferPrice(supplier);
+
+      return supplierPrice !== null && Math.abs(supplierPrice - selectedPrice) < 0.0001;
+    });
+  }
+
+  private resolveComparableOfferPrice(supplier: SupplierComparisonOffer): number | null {
+    if (typeof supplier.netPrice === 'number' && Number.isFinite(supplier.netPrice)) {
+      return supplier.netPrice;
+    }
+
+    if (typeof supplier.price === 'number' && Number.isFinite(supplier.price)) {
+      return supplier.price;
+    }
+
+    return null;
   }
 
   private buildMissingProductsFileName(createdAt: string): string {

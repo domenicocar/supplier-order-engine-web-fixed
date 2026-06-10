@@ -37,6 +37,7 @@ export interface OrderExportSummaryRow {
   lineTotal: number | null;
   foundInSuppliers: boolean;
   availableSuppliersCount: number;
+  selectedBecausePreferredTie: boolean;
   missingReason?: string;
 }
 
