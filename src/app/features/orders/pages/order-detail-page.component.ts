@@ -934,8 +934,7 @@ export class OrderDetailPageComponent {
       );
       const refreshedOrder = await firstValueFrom(this.ordersService.getOrderById(orderId));
       this.ordersStore.upsertOrder(refreshedOrder.order);
-      this.supplierComparisonRequested.set(false);
-      this.ordersStore.setSupplierComparisonRows(orderId, []);
+      await this.loadSupplierComparison();
     } catch (error: unknown) {
       this.pageError.set(
         this.toMessage(error, 'Non sono riuscito ad aggiornare il fornitore favorito.')
