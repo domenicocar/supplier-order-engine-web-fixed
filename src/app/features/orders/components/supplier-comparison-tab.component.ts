@@ -165,6 +165,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                 <td class="min-w-[34rem]">
                   <app-supplier-offer-cards
                     [offers]="row.availableSuppliers"
+                    [quantity]="row.quantity"
                     [selectedSupplierId]="row.selectedSupplierId"
                     (selectionChanged)="onSupplierCardSelection(row.lineId, $event)"
                   />

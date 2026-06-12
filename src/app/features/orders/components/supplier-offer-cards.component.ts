@@ -15,6 +15,13 @@ interface PricedSupplierOffer {
 }
 
 const COLLAPSED_OFFERS_LIMIT = 4;
+const SUPPLIER_COLORS = [
+  { accent: '#3f7a4f', soft: '#f0f8f2' },
+  { accent: '#ea580c', soft: '#fff7ed' },
+  { accent: '#0759c7', soft: '#eaf3ff' },
+  { accent: '#dc2626', soft: '#fef2f2' }
+] as const;
+const supplierColors = new Map<string, (typeof SUPPLIER_COLORS)[number]>();
 
 @Component({
   selector: 'app-supplier-offer-cards',
@@ -32,6 +39,8 @@ const COLLAPSED_OFFERS_LIMIT = 4;
             class="supplier-offer-card"
             [class.supplier-offer-card--best]="isBest(pricedOffer)"
             [class.supplier-offer-card--selected]="isSelected(pricedOffer)"
+            [style.--supplier-accent]="supplierColor(pricedOffer.offer).accent"
+            [style.--supplier-soft]="supplierColor(pricedOffer.offer).soft"
             [attr.aria-pressed]="isSelected(pricedOffer)"
             (click)="selectOffer(pricedOffer)"
           >
@@ -96,7 +105,6 @@ const COLLAPSED_OFFERS_LIMIT = 4;
         grid-template-columns: repeat(auto-fit, minmax(7.75rem, 1fr));
         gap: 0.55rem;
         min-width: 34rem;
-        width: 100%;
       }
 
       .supplier-offer-card {
@@ -105,39 +113,27 @@ const COLLAPSED_OFFERS_LIMIT = 4;
         flex-direction: column;
         gap: 0.15rem;
         padding: 0.65rem 0.75rem;
-        border: 1px solid #d7deea;
+        border: 1px solid var(--supplier-accent);
         border-radius: 0.85rem;
-        background: #fff;
+        background: var(--supplier-soft);
         color: #16213d;
         text-align: left;
         transition: 160ms ease;
       }
 
       .supplier-offer-card:hover {
-        border-color: #9aa7bd;
+        border-color: var(--supplier-accent);
         transform: translateY(-1px);
-      }
-
-      .supplier-offer-card--best {
-        border-color: #8fc7a4;
-        background: #f2faf5;
       }
 
       .supplier-offer-card--selected {
         border-width: 2px;
-        border-color: #5b5ce2;
-        background: #f4f4ff;
-      }
-
-      .supplier-offer-card--best.supplier-offer-card--selected {
-        border-color: #357a50;
-        background: #edf8f1;
+        border-color: var(--supplier-accent);
       }
 
       .supplier-offer-card__header,
       .supplier-offer-card__footer {
         display: flex;
-        min-height: 1.1rem;
         align-items: center;
         justify-content: space-between;
         gap: 0.4rem;
@@ -145,6 +141,7 @@ const COLLAPSED_OFFERS_LIMIT = 4;
 
       .supplier-offer-card__name {
         overflow: hidden;
+        color: var(--supplier-accent);
         font-size: 0.7rem;
         font-weight: 800;
         letter-spacing: 0.035em;
@@ -161,13 +158,9 @@ const COLLAPSED_OFFERS_LIMIT = 4;
         align-items: center;
         justify-content: center;
         border-radius: 999px;
-        background: #5b5ce2;
+        background: var(--supplier-accent);
         color: #fff;
         font-size: 0.58rem;
-      }
-
-      .supplier-offer-card--best .supplier-offer-card__check {
-        background: #357a50;
       }
 
       .supplier-offer-card__price,
@@ -191,7 +184,7 @@ const COLLAPSED_OFFERS_LIMIT = 4;
         display: inline-flex;
         align-items: center;
         gap: 0.25rem;
-        color: #357a50;
+        color: #9a6700;
         font-size: 0.62rem;
         font-weight: 800;
         text-transform: uppercase;
@@ -228,6 +221,7 @@ const COLLAPSED_OFFERS_LIMIT = 4;
 })
 export class SupplierOfferCardsComponent {
   readonly offers = input<SupplierComparisonOffer[]>([]);
+  readonly quantity = input<number | null>(null);
   readonly selectedSupplierId = input('');
   readonly selectionChanged = output<string>();
   readonly expanded = signal(false);
@@ -261,14 +255,29 @@ export class SupplierOfferCardsComponent {
     return supplierOfferPackageSize(offer);
   }
 
+  supplierColor(offer: SupplierComparisonOffer): (typeof SUPPLIER_COLORS)[number] {
+    const key = `${offer.supplierId}:${offer.supplierName}`.toLocaleLowerCase('it');
+    const existingColor = supplierColors.get(key);
+
+    if (existingColor) {
+      return existingColor;
+    }
+
+    const color = SUPPLIER_COLORS[supplierColors.size % SUPPLIER_COLORS.length];
+    supplierColors.set(key, color);
+    return color;
+  }
+
   isBest(pricedOffer: PricedSupplierOffer): boolean {
     return pricedOffer.offer.supplierId === this.sortedOffers()[0]?.offer.supplierId;
   }
 
   isSelected(pricedOffer: PricedSupplierOffer): boolean {
-    const selectedId =
-      this.selectedSupplierId() || this.sortedOffers()[0]?.offer.supplierId || '';
-    return pricedOffer.offer.supplierId === selectedId;
+    return (
+      typeof this.quantity() === 'number' &&
+      this.quantity()! > 0 &&
+      pricedOffer.offer.supplierId === this.selectedSupplierId()
+    );
   }
 
   priceDelta(pricedOffer: PricedSupplierOffer): number | null {
