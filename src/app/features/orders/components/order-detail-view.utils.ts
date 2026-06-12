@@ -69,8 +69,7 @@ export function resolveSelectedSupplierComparisonOffer(
   row: SupplierComparisonRow,
   manualSelection?: SupplierComparisonSelection
 ): SupplierComparisonOffer | null {
-  const selectedSupplierId =
-    manualSelection?.selectedSupplierId || row.selectedOffer?.supplierId || row.bestOffer?.supplierId;
+  const selectedSupplierId = manualSelection?.selectedSupplierId;
 
   if (selectedSupplierId) {
     return (
@@ -82,15 +81,46 @@ export function resolveSelectedSupplierComparisonOffer(
     );
   }
 
-  return row.selectedOffer ?? row.bestOffer ?? row.availableSuppliers[0] ?? null;
+  return (
+    sortSupplierOffersByPackPrice(row.availableSuppliers)[0] ??
+    row.selectedOffer ??
+    row.bestOffer ??
+    null
+  );
 }
 
-export function formatSupplierOption(option: SupplierComparisonOffer): string {
-  const packageSize = option.packageSize > 0 ? option.packageSize : 1;
-  const unitPrice = option.netPrice ?? option.price;
-  const packPrice = unitPrice === null ? null : unitPrice * packageSize;
+export function supplierOfferPackageSize(option: SupplierComparisonOffer): number {
+  return option.packageSize > 0 ? option.packageSize : 1;
+}
 
-  return `${option.supplierName}: ${formatPrice(unitPrice)} cad. · conf. ${packageSize} · ${formatPrice(packPrice)} a confezione`;
+export function supplierOfferUnitPrice(option: SupplierComparisonOffer): number | null {
+  return option.netPrice ?? option.price;
+}
+
+export function supplierOfferPackPrice(option: SupplierComparisonOffer): number | null {
+  const unitPrice = supplierOfferUnitPrice(option);
+  return unitPrice === null ? null : unitPrice * supplierOfferPackageSize(option);
+}
+
+export function sortSupplierOffersByPackPrice(
+  offers: SupplierComparisonOffer[]
+): SupplierComparisonOffer[] {
+  return [...offers].sort((left, right) => {
+    const leftPrice = supplierOfferPackPrice(left);
+    const rightPrice = supplierOfferPackPrice(right);
+
+    if (leftPrice === null) {
+      return rightPrice === null
+        ? left.supplierName.localeCompare(right.supplierName, 'it')
+        : 1;
+    }
+
+    if (rightPrice === null) {
+      return -1;
+    }
+
+    return leftPrice - rightPrice || left.supplierName.localeCompare(right.supplierName, 'it');
+  });
 }
 
 export function supplierAvailabilityLabel(count: number): string {

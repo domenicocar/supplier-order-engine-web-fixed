@@ -3,17 +3,15 @@ import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 
 import { SupplierComparisonTableRow } from './order-detail-view.models';
-import {
-  formatPrice,
-  formatSupplierOption
-} from './order-detail-view.utils';
+import { formatPrice } from './order-detail-view.utils';
+import { SupplierOfferCardsComponent } from './supplier-offer-cards.component';
 
 const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
 
 @Component({
   selector: 'app-supplier-comparison-tab',
   standalone: true,
-  imports: [ButtonModule, TableModule],
+  imports: [ButtonModule, SupplierOfferCardsComponent, TableModule],
   template: `
     <section class="surface-panel p-6 md:p-7">
       <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
@@ -107,8 +105,11 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
               <tr>
                 <th>EAN</th>
                 <th>Descrizione</th>
-                <th>Fornitori disponibili</th>
-                <th>Quantita</th>
+                <th>
+                  Fornitori disponibili
+                  <span class="font-normal normal-case">(ordinati per prezzo)</span>
+                </th>
+                <th class="comparison-quantity-column">QTA</th>
                 <th>Totale confezione</th>
                 <th>Totale dovuto</th>
               </tr>
@@ -128,11 +129,15 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                       <div class="h-4 w-2/3 max-w-52 rounded-full bg-slate-100"></div>
                     </div>
                   </td>
-                  <td class="min-w-72">
-                    <div class="h-10 w-full animate-pulse rounded-2xl bg-slate-200"></div>
+                  <td class="min-w-[34rem]">
+                    <div class="grid animate-pulse grid-cols-2 gap-2 xl:grid-cols-4">
+                      @for (placeholder of skeletonSupplierCards; track placeholder) {
+                        <div class="h-24 rounded-xl border border-slate-100 bg-slate-200"></div>
+                      }
+                    </div>
                   </td>
-                  <td class="min-w-32">
-                    <div class="h-10 w-full max-w-40 animate-pulse rounded-xl bg-slate-200"></div>
+                  <td class="comparison-quantity-column">
+                    <div class="h-11 w-11 animate-pulse rounded-xl bg-slate-200"></div>
                   </td>
                   <td class="min-w-40">
                     <div class="animate-pulse space-y-2">
@@ -157,77 +162,21 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                   </div>
                 </td>
                 <td>{{ row.description }}</td>
-                <td class="min-w-72">
-                  <div class="flex flex-col gap-2">
-                    <div class="comparison-supplier-select">
-                      <div
-                        class="comparison-supplier-select__card"
-                        [class.comparison-supplier-select__card--active]="hasPositiveQuantity(row)"
-                        [class.comparison-supplier-select__card--inactive]="
-                          !hasPositiveQuantity(row) && row.availableSuppliers.length > 0
-                        "
-                        [class.comparison-supplier-select__card--with-badge]="
-                          hasSupplierCountBadge(row)
-                        "
-                        [class.comparison-supplier-select__card--without-badge]="
-                          !hasSupplierCountBadge(row)
-                        "
-                        [class.comparison-supplier-select__card--disabled]="
-                          row.availableSuppliers.length === 0
-                        "
-                      >
-                        <div
-                          class="comparison-supplier-select__status"
-                          [class.comparison-supplier-select__status--hidden]="
-                            !hasPositiveQuantity(row) && row.availableSuppliers.length > 0
-                          "
-                        >
-                          @if (hasPositiveQuantity(row)) {
-                            <i class="pi pi-check"></i>
-                          }
-                        </div>
-
-                        <div class="comparison-supplier-select__content">
-                          <p class="comparison-supplier-select__name">
-                            {{ row.selectedSupplierName || 'Nessun fornitore' }}
-                          </p>
-                          <p class="comparison-supplier-select__price">
-                            {{ formatSupplierUnitPrice(row) }} cad.
-                          </p>
-                        </div>
-
-                        @if (hasSupplierCountBadge(row)) {
-                          <span class="comparison-supplier-select__badge">
-                            {{ row.availableSuppliers.length }}
-                          </span>
-                        }
-                      </div>
-
-                      <select
-                        class="comparison-supplier-select__native"
-                        data-comparison-field="supplier"
-                        [attr.data-comparison-line-id]="row.lineId"
-                        [value]="row.selectedSupplierId"
-                        [disabled]="row.availableSuppliers.length === 0"
-                        (change)="onSelectionChange(row.lineId, $event)"
-                      >
-                        @for (option of row.availableSuppliers; track option.supplierId) {
-                          <option [value]="option.supplierId">
-                            {{ formatSupplierOption(option) }}
-                          </option>
-                        }
-                      </select>
-                    </div>
-                  </div>
+                <td class="min-w-[34rem]">
+                  <app-supplier-offer-cards
+                    [offers]="row.availableSuppliers"
+                    [selectedSupplierId]="row.selectedSupplierId"
+                    (selectionChanged)="onSupplierCardSelection(row.lineId, $event)"
+                  />
                 </td>
-                <td class="min-w-32">
+                <td class="comparison-quantity-column">
                   <div class="comparison-quantity-cell">
                     <input
                       type="number"
                       min="0"
                       step="1"
                       placeholder="0"
-                      class="app-input comparison-quantity-cell__input rounded-xl px-3 py-2"
+                      class="app-input comparison-quantity-cell__input rounded-xl"
                       data-comparison-field="quantity"
                       [attr.data-comparison-line-id]="row.lineId"
                       [value]="row.quantity ?? ''"
@@ -341,135 +290,6 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         font-weight: 400;
       }
 
-      .comparison-supplier-select {
-        position: relative;
-      }
-
-      .comparison-supplier-select__card {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        align-items: center;
-        gap: 0.6rem;
-        min-height: 2.5rem;
-        padding: 0.22rem 0.75rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 1.1rem;
-        background: #ffffff;
-        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-      }
-
-      .comparison-supplier-select__card--active {
-        border-color: #447a59;
-        background: #f4f8f5;
-        box-shadow: inset 0 0 0 1px rgba(68, 122, 89, 0.08);
-      }
-
-      .comparison-supplier-select__card--inactive {
-        grid-template-columns: 0 minmax(0, 1fr) auto;
-        gap: 0.35rem;
-        border-color: #cbd5e1;
-        background: #ffffff;
-        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-      }
-
-      .comparison-supplier-select__card--without-badge {
-        grid-template-columns: auto minmax(0, 1fr);
-      }
-
-      .comparison-supplier-select__card--inactive.comparison-supplier-select__card--without-badge {
-        grid-template-columns: 0 minmax(0, 1fr);
-      }
-
-      .comparison-supplier-select__card--disabled {
-        border-color: #cbd5e1;
-        background: #f8fafc;
-        box-shadow: none;
-      }
-
-      .comparison-supplier-select__status {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 1rem;
-        height: 1rem;
-        border-radius: 999px;
-        background: #e2e8f0;
-        color: #64748b;
-        font-size: 0.55rem;
-      }
-
-      .comparison-supplier-select__card--active .comparison-supplier-select__status {
-        background: #447a59;
-        color: #ffffff;
-      }
-
-      .comparison-supplier-select__status--hidden {
-        width: 0;
-        background: transparent;
-        color: transparent;
-      }
-
-      .comparison-supplier-select__card--disabled .comparison-supplier-select__status {
-        background: #cbd5e1;
-        color: #64748b;
-      }
-
-      .comparison-supplier-select__content {
-        min-width: 0;
-      }
-
-      .comparison-supplier-select__name {
-        margin: 0;
-        color: #16213d;
-        font-size: 0.7rem;
-        font-weight: 700;
-        line-height: 1.1;
-      }
-
-      .comparison-supplier-select__card--active .comparison-supplier-select__name {
-        color: #447a59;
-      }
-
-      .comparison-supplier-select__card--disabled .comparison-supplier-select__name {
-        color: #64748b;
-      }
-
-      .comparison-supplier-select__price {
-        margin: 0.02rem 0 0;
-        color: #16213d;
-        font-size: 0.7rem;
-        font-weight: 500;
-        line-height: 1.1;
-      }
-
-      .comparison-supplier-select__badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 1.65rem;
-        height: 1.65rem;
-        padding: 0 0.45rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 999px;
-        background: #ffffff;
-        color: #475569;
-        font-size: 0.7rem;
-        font-weight: 700;
-      }
-
-      .comparison-supplier-select__native {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        cursor: pointer;
-      }
-
-      .comparison-supplier-select__native:disabled {
-        cursor: not-allowed;
-      }
-
       .comparison-availability {
         display: inline-flex;
         align-items: center;
@@ -514,13 +334,20 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
       .comparison-quantity-cell {
         display: flex;
         align-items: center;
-        gap: 0.55rem;
+        gap: 0.3rem;
+      }
+
+      .comparison-quantity-column {
+        width: 5rem;
+        min-width: 5rem;
       }
 
       .comparison-quantity-cell__input {
-        width: 100%;
-        min-width: 0;
-        max-width: 10.5rem;
+        width: 2.75rem;
+        height: 2.75rem;
+        flex: 0 0 2.75rem;
+        padding: 0;
+        text-align: center;
       }
 
       .comparison-quantity-cell__split-button {
@@ -610,7 +437,7 @@ export class SupplierComparisonTabComponent {
   );
 
   readonly formatPrice = formatPrice;
-  readonly formatSupplierOption = formatSupplierOption;
+  readonly skeletonSupplierCards = [1, 2, 3, 4];
   readonly trackByEan = (_index: number, row: SupplierComparisonTableRow) => row.lineId;
   private readonly euroFormatter = new Intl.NumberFormat('it-IT', {
     style: 'currency',
@@ -625,14 +452,6 @@ export class SupplierComparisonTabComponent {
     }
 
     return this.euroFormatter.format(row.selectedPrice * row.selectedPackageSize);
-  }
-
-  formatSupplierUnitPrice(row: SupplierComparisonTableRow): string {
-    if (row.selectedPrice === null) {
-      return '€ -';
-    }
-
-    return this.euroFormatter.format(row.selectedPrice);
   }
 
   formatSupplierTotalDue(row: SupplierComparisonTableRow): string {
@@ -654,14 +473,6 @@ export class SupplierComparisonTabComponent {
     this.currentPage.set(1);
   }
 
-  hasPositiveQuantity(row: SupplierComparisonTableRow): boolean {
-    return typeof row.quantity === 'number' && Number.isFinite(row.quantity) && row.quantity > 0;
-  }
-
-  hasSupplierCountBadge(row: SupplierComparisonTableRow): boolean {
-    return row.availableSuppliers.length > 1;
-  }
-
   canSplitRow(row: SupplierComparisonTableRow): boolean {
     return (
       row.lineType === 'order' &&
@@ -671,8 +482,7 @@ export class SupplierComparisonTabComponent {
     );
   }
 
-  onSelectionChange(lineId: string, event: Event): void {
-    const supplierId = (event.target as HTMLSelectElement).value;
+  onSupplierCardSelection(lineId: string, supplierId: string): void {
     this.selectionChanged.emit({ lineId, supplierId });
   }
 
