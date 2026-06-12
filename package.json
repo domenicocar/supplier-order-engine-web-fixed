@@ -21,7 +21,6 @@
     "@primeng/themes": "^18.0.2",
     "@supabase/supabase-js": "^2.105.4",
     "@vercel/analytics": "^2.0.1",
-    "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
     "primeicons": "^7.0.0",
     "primeng": "^18.0.2",
