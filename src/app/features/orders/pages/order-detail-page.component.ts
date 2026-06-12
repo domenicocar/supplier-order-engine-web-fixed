@@ -111,7 +111,11 @@ interface ToastNotification {
           </div>
         </div>
 
-        <p-tabs [value]="'import'" [lazy]="true" class="flex flex-col gap-6">
+        <p-tabs
+          [value]="'import'"
+          [lazy]="true"
+          class="order-detail-tabs flex min-w-0 flex-col gap-6"
+        >
           <p-tablist>
             <p-tab value="import">Import</p-tab>
             <p-tab value="comparison" [disabled]="true">Confronto fornitori</p-tab>
@@ -242,7 +246,7 @@ interface ToastNotification {
             [value]="activeTab()"
             (valueChange)="onActiveTabChange($event)"
             [lazy]="true"
-            class="flex flex-col gap-6"
+            class="order-detail-tabs flex min-w-0 flex-col gap-6"
           >
             <p-tablist>
               <p-tab value="import">Import</p-tab>

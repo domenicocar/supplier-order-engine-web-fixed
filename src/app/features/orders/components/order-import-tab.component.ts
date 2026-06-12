@@ -63,22 +63,35 @@ type DraftSupplierCard = {
             </p>
           </div>
 
-          <button
-            type="button"
-            class="shrink-0 self-start rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
-            (click)="openOrderProductsDialog()"
-          >
-            Vedi riassortimento
-          </button>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              class="shrink-0 rounded-2xl border border-[var(--brand-primary)] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--brand-primary)] transition hover:bg-[var(--brand-primary-soft)]"
+              (click)="openOrderProductsDialog()"
+            >
+              Vedi riassortimento
+            </button>
+            @if (restockMode() !== null) {
+              <button
+                type="button"
+                class="shrink-0 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:border-slate-400 hover:bg-slate-50"
+                (click)="toggleRestockMode()"
+              >
+                {{
+                  restockMode() === 'catalog'
+                    ? 'Importa da file'
+                    : 'Riordino manuale'
+                }}
+              </button>
+            }
+          </div>
         </div>
 
-        <div class="mb-6 grid gap-3 md:grid-cols-2">
+        @if (restockMode() === null) {
+        <div class="grid gap-3 md:grid-cols-2">
           <button
             type="button"
-            class="rounded-2xl border p-4 text-left transition"
-            [class]="restockMode() === 'catalog'
-              ? 'border-[var(--brand-primary)] bg-[var(--brand-primary-soft)]'
-              : 'border-[var(--app-border)] bg-white hover:border-[var(--brand-primary)]'"
+            class="rounded-2xl border border-[var(--app-border)] bg-white p-4 text-left transition hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary-soft)]"
             (click)="restockMode.set('catalog')"
           >
             <span class="block text-sm font-semibold text-[var(--app-text)]">
@@ -90,10 +103,7 @@ type DraftSupplierCard = {
           </button>
           <button
             type="button"
-            class="rounded-2xl border p-4 text-left transition"
-            [class]="restockMode() === 'import'
-              ? 'border-[var(--brand-primary)] bg-[var(--brand-primary-soft)]'
-              : 'border-[var(--app-border)] bg-white hover:border-[var(--brand-primary)]'"
+            class="rounded-2xl border border-[var(--app-border)] bg-white p-4 text-left transition hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary-soft)]"
             (click)="restockMode.set('import')"
           >
             <span class="block text-sm font-semibold text-[var(--app-text)]">
@@ -104,7 +114,7 @@ type DraftSupplierCard = {
             </span>
           </button>
         </div>
-
+        }
         @if (restockMode() === 'catalog') {
           <app-global-catalog-order-builder
             [products]="globalCatalogProducts()"
@@ -116,7 +126,7 @@ type DraftSupplierCard = {
             (searchRequested)="globalCatalogSearchRequested.emit($event)"
             (productsAdded)="globalCatalogProductsAdded.emit($event)"
           />
-        } @else {
+        } @else if (restockMode() === 'import') {
         <div class="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
           <div class="flex items-start gap-3">
             <div
@@ -354,7 +364,19 @@ type DraftSupplierCard = {
           [draggable]="false"
           [resizable]="false"
           [dismissableMask]="true"
-          [style]="{ width: 'min(960px, 96vw)' }"
+          [blockScroll]="true"
+          [style]="{
+            width: 'min(960px, calc(100vw - 2rem))',
+            maxHeight: 'calc(100dvh - 2rem)',
+            display: 'flex',
+            flexDirection: 'column'
+          }"
+          [contentStyle]="{
+            overflowY: 'auto',
+            overscrollBehavior: 'contain',
+            flex: '1 1 auto',
+            minHeight: '0'
+          }"
           header="Prodotti riassortimento"
         >
           <div class="flex flex-col gap-4">
@@ -362,7 +384,72 @@ type DraftSupplierCard = {
               Elenco dei prodotti attualmente presenti nel riassortimento.
             </p>
 
-            <div class="overflow-hidden rounded-2xl border border-slate-200">
+            <div class="space-y-3 md:hidden">
+              @if (globalCatalogSaving()) {
+                @for (row of dialogSkeletonRows; track row) {
+                  <article class="animate-pulse rounded-2xl border border-slate-200 bg-white p-4">
+                    <div class="h-3 w-36 rounded bg-slate-200"></div>
+                    <div class="mt-2 h-4 w-4/5 rounded bg-slate-200"></div>
+                    <div class="mt-5 flex items-center justify-between">
+                      <div class="h-3 w-20 rounded bg-slate-200"></div>
+                      <div class="h-12 w-36 rounded-2xl bg-slate-200"></div>
+                    </div>
+                  </article>
+                }
+              } @else {
+                @for (item of order().items; track item.ean) {
+                  <article
+                    class="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.05)]"
+                  >
+                    <p class="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-slate-400">
+                      EAN {{ item.ean }}
+                    </p>
+                    <h4 class="mt-1 text-sm font-semibold leading-5 text-slate-800">
+                      {{ item.description || 'Descrizione non disponibile' }}
+                    </h4>
+
+                    <div class="mt-4 flex items-center justify-between gap-4 border-t border-slate-100 pt-4">
+                      <div>
+                        <p class="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-slate-400">
+                          Quantità
+                        </p>
+                        <p class="mt-1 text-xs text-slate-500">Pezzi da ordinare</p>
+                      </div>
+                      <div
+                        class="flex shrink-0 items-center overflow-hidden rounded-2xl border border-[var(--app-border)] bg-white"
+                        [attr.aria-label]="'Quantità per ' + (item.description || item.ean)"
+                      >
+                        <button
+                          type="button"
+                          class="flex h-12 w-11 items-center justify-center text-slate-600 transition hover:bg-slate-50 disabled:text-slate-300"
+                          aria-label="Rimuovi un pezzo"
+                          [disabled]="dialogQuantityFor(item) === 0"
+                          (click)="changeDialogQuantity(item, -1)"
+                        >
+                          <i class="pi pi-minus text-xs" aria-hidden="true"></i>
+                        </button>
+                        <span
+                          class="flex h-12 min-w-12 items-center justify-center border-x border-[var(--app-border)] px-2 text-base font-bold text-slate-900"
+                          aria-live="polite"
+                        >
+                          {{ dialogQuantityFor(item) }}
+                        </span>
+                        <button
+                          type="button"
+                          class="flex h-12 w-11 items-center justify-center text-[var(--brand-primary)] transition hover:bg-[var(--brand-primary-soft)]"
+                          aria-label="Aggiungi un pezzo"
+                          (click)="changeDialogQuantity(item, 1)"
+                        >
+                          <i class="pi pi-plus text-xs" aria-hidden="true"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                }
+              }
+            </div>
+
+            <div class="hidden overflow-hidden rounded-2xl border border-slate-200 md:block">
               <p-table
                 [value]="order().items"
                 [paginator]="order().items.length > orderItemsPageSize"
@@ -1051,9 +1138,11 @@ export class OrderImportTabComponent {
     Record<string, SupplierColumnMapping | null>
   >({});
   readonly draftSuppliers = signal<DraftSupplierCard[]>([]);
-  readonly restockMode = signal<'catalog' | 'import'>('catalog');
+  readonly dialogQuantities = signal<Record<string, number>>({});
+  readonly restockMode = signal<'catalog' | 'import' | null>(null);
 
   readonly orderItemsPageSize = 10;
+  readonly dialogSkeletonRows = [1, 2, 3];
   private readonly destroyRef = inject(DestroyRef);
   private readonly pendingDialogItems = new Map<
     string,
@@ -1198,6 +1287,10 @@ export class OrderImportTabComponent {
       ? Math.max(0, Math.round(numericValue))
       : 0;
 
+    this.dialogQuantities.update((quantities) => ({
+      ...quantities,
+      [item.ean]: quantity,
+    }));
     this.pendingDialogItems.set(item.ean, {
       ean: item.ean,
       description: item.description ?? '',
@@ -1216,6 +1309,16 @@ export class OrderImportTabComponent {
     }, 400);
   }
 
+  dialogQuantityFor(item: OrderItem): number {
+    const editedQuantity = this.dialogQuantities()[item.ean];
+    const quantity = editedQuantity ?? item.quantity ?? 0;
+    return Math.max(0, Math.round(quantity));
+  }
+
+  changeDialogQuantity(item: OrderItem, delta: number): void {
+    this.onDialogQuantityChange(item, this.dialogQuantityFor(item) + delta);
+  }
+
   onOrderFileChange(event: Event): void {
     const inputElement = event.target as HTMLInputElement;
     const file = inputElement.files?.[0] ?? null;
@@ -1229,6 +1332,10 @@ export class OrderImportTabComponent {
 
   openOrderProductsDialog(): void {
     this.orderProductsDialogVisible = true;
+  }
+
+  toggleRestockMode(): void {
+    this.restockMode.update((mode) => (mode === 'catalog' ? 'import' : 'catalog'));
   }
 
   onSupplierFileChange(supplierId: string, event: Event): void {

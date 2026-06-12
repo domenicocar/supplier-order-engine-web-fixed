@@ -17,17 +17,17 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
   standalone: true,
   imports: [BarcodeScannerComponent, FormsModule],
   template: `
-    <div class="rounded-3xl border border-[var(--app-border)] bg-white p-5 shadow-sm">
+    <div class="min-w-0 rounded-3xl border border-[var(--app-border)] bg-white p-4 shadow-sm sm:p-5">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-        <h3 class="text-base font-semibold text-[var(--app-text)]">Catalogo prodotti</h3>
-        <p class="mt-1 text-sm text-[var(--app-text-muted)]">
-          Cerca per EAN o descrizione, indica le quantità e aggiungi i prodotti al riordino.
-        </p>
+          <h3 class="text-base font-semibold text-[var(--app-text)]">Catalogo prodotti</h3>
+          <p class="mt-1 text-sm leading-6 text-[var(--app-text-muted)]">
+            Cerca per EAN o descrizione, indica le quantità e aggiungi i prodotti al riordino.
+          </p>
         </div>
         <button
           type="button"
-          class="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-[var(--brand-primary)] bg-[var(--brand-primary-soft)] px-4 py-2.5 text-sm font-semibold text-[var(--brand-primary)] transition hover:brightness-95"
+          class="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-2xl border border-[var(--brand-primary)] bg-[var(--brand-primary-soft)] px-4 py-3 text-sm font-semibold text-[var(--brand-primary)] transition hover:brightness-95 sm:hidden"
           (click)="scannerOpen.set(true)"
         >
           <i class="pi pi-camera" aria-hidden="true"></i>
@@ -56,7 +56,85 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
       }
 
       @if (products().length > 0) {
-        <div class="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+        <div class="mt-5 space-y-3 md:hidden">
+          @if (saving()) {
+            @for (row of skeletonRows; track row) {
+              <article class="animate-pulse rounded-2xl border border-slate-200 bg-white p-4">
+                <div class="h-3 w-16 rounded bg-slate-200"></div>
+                <div class="mt-2 h-4 w-32 rounded bg-slate-200"></div>
+                <div class="mt-5 h-3 w-24 rounded bg-slate-200"></div>
+                <div class="mt-2 h-4 w-4/5 rounded bg-slate-200"></div>
+                <div class="mt-5 flex items-center justify-between">
+                  <div class="h-3 w-20 rounded bg-slate-200"></div>
+                  <div class="h-12 w-20 rounded-2xl bg-slate-200"></div>
+                </div>
+              </article>
+            }
+          } @else {
+            @for (product of products(); track product.ean) {
+              <article
+                class="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.05)]"
+              >
+                <div class="flex min-w-0 items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-slate-400">
+                      EAN {{ product.ean }}
+                    </p>
+                    <h4 class="mt-1 text-sm font-semibold leading-5 text-slate-800">
+                      {{ product.description }}
+                    </h4>
+                  </div>
+                  @if (quantityFor(product.ean) > 0) {
+                    <span
+                      class="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700"
+                    >
+                      Nel riordino
+                    </span>
+                  }
+                </div>
+
+                <div class="mt-4 flex items-center justify-between gap-4 border-t border-slate-100 pt-4">
+                  <div>
+                    <p class="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-slate-400">
+                      Quantità
+                    </p>
+                    <p class="mt-1 text-xs text-slate-500">Pezzi da ordinare</p>
+                  </div>
+                  <div
+                    class="flex shrink-0 items-center overflow-hidden rounded-2xl border border-[var(--app-border)] bg-white"
+                    [attr.aria-label]="'Quantità per ' + product.description"
+                  >
+                    <button
+                      type="button"
+                      class="flex h-12 w-11 items-center justify-center text-lg font-semibold text-slate-600 transition hover:bg-slate-50 disabled:text-slate-300"
+                      aria-label="Rimuovi un pezzo"
+                      [disabled]="quantityFor(product.ean) === 0"
+                      (click)="changeQuantity(product.ean, -1)"
+                    >
+                      <i class="pi pi-minus text-xs" aria-hidden="true"></i>
+                    </button>
+                    <span
+                      class="flex h-12 min-w-12 items-center justify-center border-x border-[var(--app-border)] px-2 text-base font-bold text-slate-900"
+                      aria-live="polite"
+                    >
+                      {{ quantityFor(product.ean) }}
+                    </span>
+                    <button
+                      type="button"
+                      class="flex h-12 w-11 items-center justify-center text-lg font-semibold text-[var(--brand-primary)] transition hover:bg-[var(--brand-primary-soft)]"
+                      aria-label="Aggiungi un pezzo"
+                      (click)="changeQuantity(product.ean, 1)"
+                    >
+                      <i class="pi pi-plus text-xs" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+              </article>
+            }
+          }
+        </div>
+
+        <div class="mt-5 hidden overflow-hidden rounded-2xl border border-slate-200 md:block">
           <div class="max-h-[28rem] overflow-auto">
             <table class="w-full border-collapse text-left text-sm">
               <thead class="sticky top-0 bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
@@ -166,6 +244,10 @@ export class GlobalCatalogOrderBuilderComponent {
 
     const existingQuantity = this.existingItems().find((item) => item.ean === ean)?.quantity;
     return typeof existingQuantity === 'number' ? existingQuantity : 0;
+  }
+
+  changeQuantity(ean: string, delta: number): void {
+    this.setQuantity(ean, this.quantityFor(ean) + delta);
   }
 
   setQuantity(ean: string, rawValue: number | string): void {
