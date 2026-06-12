@@ -55,12 +55,7 @@ type DraftSupplierCard = {
         <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p class="section-eyebrow">1. Import riassortimento</p>
-            <h2 class="section-title">Importazione riassortimento</h2>
-            <p class="section-copy">
-              Carica un file riassortimento. Per i file tabellari mostriamo un'anteprima e
-              ti lasciamo confermare le colonne per EAN, descrizione e quantita
-              prima dell'import definitivo.
-            </p>
+            <h2 class="section-title">Riassortimento</h2>
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
@@ -573,10 +568,6 @@ type DraftSupplierCard = {
           <div>
             <p class="section-eyebrow">2. Fornitori</p>
             <h2 class="section-title">Fornitori e listini</h2>
-            <p class="section-copy">
-              Crea un fornitore al momento del primo upload e poi conferma il mapping di EAN,
-              descrizione, prezzo netto, pack size, disponibilita e colonna ordine.
-            </p>
           </div>
 
           <div class="flex flex-wrap items-center gap-3">

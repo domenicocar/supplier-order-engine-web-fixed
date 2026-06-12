@@ -21,9 +21,6 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 class="text-base font-semibold text-[var(--app-text)]">Catalogo prodotti</h3>
-          <p class="mt-1 text-sm leading-6 text-[var(--app-text-muted)]">
-            Cerca per EAN o descrizione, indica le quantità e aggiungi i prodotti al riordino.
-          </p>
         </div>
         <button
           type="button"
