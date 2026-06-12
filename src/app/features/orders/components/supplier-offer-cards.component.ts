@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output, signal } f
 
 import { SupplierComparisonOffer } from '../../../models/order.models';
 import {
-  sortSupplierOffersByPackPrice,
+  sortSupplierOffersByUnitPrice,
   supplierOfferPackageSize,
   supplierOfferPackPrice,
   supplierOfferUnitPrice
@@ -227,7 +227,7 @@ export class SupplierOfferCardsComponent {
   readonly expanded = signal(false);
 
   readonly sortedOffers = computed<PricedSupplierOffer[]>(() =>
-    sortSupplierOffersByPackPrice(this.offers()).map((offer) => ({
+    sortSupplierOffersByUnitPrice(this.offers()).map((offer) => ({
       offer,
       unitPrice: supplierOfferUnitPrice(offer),
       packPrice: supplierOfferPackPrice(offer)
@@ -281,13 +281,13 @@ export class SupplierOfferCardsComponent {
   }
 
   priceDelta(pricedOffer: PricedSupplierOffer): number | null {
-    const bestPrice = this.sortedOffers()[0]?.packPrice ?? null;
+    const bestPrice = this.sortedOffers()[0]?.unitPrice ?? null;
 
-    if (bestPrice === null || pricedOffer.packPrice === null) {
+    if (bestPrice === null || pricedOffer.unitPrice === null) {
       return null;
     }
 
-    return Math.max(0, pricedOffer.packPrice - bestPrice);
+    return Math.max(0, pricedOffer.unitPrice - bestPrice);
   }
 
   formatDelta(pricedOffer: PricedSupplierOffer): string {

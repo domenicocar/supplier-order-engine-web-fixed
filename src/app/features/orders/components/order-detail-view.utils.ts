@@ -82,7 +82,7 @@ export function resolveSelectedSupplierComparisonOffer(
   }
 
   return (
-    sortSupplierOffersByPackPrice(row.availableSuppliers)[0] ??
+    sortSupplierOffersByUnitPrice(row.availableSuppliers)[0] ??
     row.selectedOffer ??
     row.bestOffer ??
     null
@@ -102,12 +102,12 @@ export function supplierOfferPackPrice(option: SupplierComparisonOffer): number 
   return unitPrice === null ? null : unitPrice * supplierOfferPackageSize(option);
 }
 
-export function sortSupplierOffersByPackPrice(
+export function sortSupplierOffersByUnitPrice(
   offers: SupplierComparisonOffer[]
 ): SupplierComparisonOffer[] {
   return [...offers].sort((left, right) => {
-    const leftPrice = supplierOfferPackPrice(left);
-    const rightPrice = supplierOfferPackPrice(right);
+    const leftPrice = supplierOfferUnitPrice(left);
+    const rightPrice = supplierOfferUnitPrice(right);
 
     if (leftPrice === null) {
       return rightPrice === null
@@ -119,7 +119,15 @@ export function sortSupplierOffersByPackPrice(
       return -1;
     }
 
-    return leftPrice - rightPrice || left.supplierName.localeCompare(right.supplierName, 'it');
+    if (leftPrice !== rightPrice) {
+      return leftPrice - rightPrice;
+    }
+
+    if ((left.preferred ?? false) !== (right.preferred ?? false)) {
+      return left.preferred ? -1 : 1;
+    }
+
+    return left.supplierName.localeCompare(right.supplierName, 'it');
   });
 }
 

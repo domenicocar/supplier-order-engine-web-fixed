@@ -2034,26 +2034,16 @@ export class OrderDetailPageComponent {
       );
       const manualSelection = selections[lineId];
       const selectedOption = comparisonRow
-        ? resolveSelectedSupplierComparisonOffer(
-            comparisonRow,
-            manualSelection ??
-              (item.supplierId
-                ? {
-                    selectedSupplierId: item.supplierId,
-                    selectedSupplierName:
-                      this.resolveSupplierName(currentOrder, item.supplierId) ?? '',
-                    selectedPrice: null,
-                    selectedPackageSize: 1
-                  }
-                : undefined)
-          )
+        ? resolveSelectedSupplierComparisonOffer(comparisonRow, manualSelection)
         : null;
       const selectedSupplierId =
-        manualSelection?.selectedSupplierId ?? selectedOption?.supplierId ?? item.supplierId ?? '';
+        manualSelection?.selectedSupplierId ??
+        selectedOption?.supplierId ??
+        (comparisonRow ? '' : item.supplierId ?? '');
       const selectedSupplierName =
         manualSelection?.selectedSupplierName ||
         selectedOption?.supplierName ||
-        this.resolveSupplierName(currentOrder, item.supplierId) ||
+        (comparisonRow ? '' : this.resolveSupplierName(currentOrder, item.supplierId)) ||
         '';
       const selectedPrice =
         manualSelection?.selectedPrice ?? selectedOption?.netPrice ?? selectedOption?.price ?? null;

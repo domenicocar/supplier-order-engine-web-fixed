@@ -2,7 +2,7 @@ import { SupplierComparisonOffer, SupplierComparisonRow } from '../../../models/
 import {
   calculateRoundedLineTotal,
   resolveSelectedSupplierComparisonOffer,
-  sortSupplierOffersByPackPrice,
+  sortSupplierOffersByUnitPrice,
   supplierOfferPackPrice,
   sumRoundedCurrency
 } from './order-detail-view.utils';
@@ -58,7 +58,7 @@ describe('order-detail-view.utils', () => {
     ).toBe(13.83);
   });
 
-  it('ordina le offerte per prezzo confezione e non per solo prezzo unitario', () => {
+  it('ordina le offerte per prezzo unitario anche quando la confezione costa di piu', () => {
     const offers: SupplierComparisonOffer[] = [
       {
         supplierId: 'unit-cheap',
@@ -78,13 +78,13 @@ describe('order-detail-view.utils', () => {
       }
     ];
 
-    expect(sortSupplierOffersByPackPrice(offers).map((offer) => offer.supplierId)).toEqual([
-      'pack-cheap',
-      'unit-cheap'
+    expect(sortSupplierOffersByUnitPrice(offers).map((offer) => offer.supplierId)).toEqual([
+      'unit-cheap',
+      'pack-cheap'
     ]);
   });
 
-  it('calcola il prezzo confezione usato per mostrare la differenza rispetto al migliore', () => {
+  it('mantiene disponibile il prezzo confezione come informazione secondaria', () => {
     const best: SupplierComparisonOffer = {
       supplierId: 'best',
       supplierName: 'Best',
@@ -103,12 +103,10 @@ describe('order-detail-view.utils', () => {
     };
 
     expect(supplierOfferPackPrice(best)).toBeCloseTo(19.44, 2);
-    expect(
-      (supplierOfferPackPrice(alternative) ?? 0) - (supplierOfferPackPrice(best) ?? 0)
-    ).toBeCloseTo(0.06, 2);
+    expect(supplierOfferPackPrice(alternative)).toBeCloseTo(19.5, 2);
   });
 
-  it('seleziona automaticamente il fornitore con la confezione meno costosa', () => {
+  it('seleziona automaticamente il fornitore con il prezzo unitario piu basso', () => {
     const row: SupplierComparisonRow = {
       ean: '123',
       description: 'Prodotto',
@@ -142,6 +140,56 @@ describe('order-detail-view.utils', () => {
       ]
     };
 
-    expect(resolveSelectedSupplierComparisonOffer(row)?.supplierId).toBe('pack-cheap');
+    expect(resolveSelectedSupplierComparisonOffer(row)?.supplierId).toBe('unit-cheap');
+  });
+
+  it('preferisce il fornitore favorito a parita di prezzo unitario', () => {
+    const offers: SupplierComparisonOffer[] = [
+      {
+        supplierId: 'standard',
+        supplierName: 'Standard',
+        packageSize: 6,
+        price: 1.89,
+        netPrice: 1.89,
+        grossPrice: null,
+        preferred: false
+      },
+      {
+        supplierId: 'preferred',
+        supplierName: 'Preferred',
+        packageSize: 12,
+        price: 1.89,
+        netPrice: 1.89,
+        grossPrice: null,
+        preferred: true
+      }
+    ];
+
+    expect(sortSupplierOffersByUnitPrice(offers)[0]?.supplierId).toBe('preferred');
+  });
+
+  it('seleziona il prezzo raw piu basso anche quando i prezzi mostrati coincidono', () => {
+    const offers: SupplierComparisonOffer[] = [
+      {
+        supplierId: 'cheaper-raw',
+        supplierName: 'Cheaper raw',
+        packageSize: 12,
+        price: 2.536,
+        netPrice: 2.536,
+        grossPrice: null,
+        preferred: false
+      },
+      {
+        supplierId: 'preferred',
+        supplierName: 'Preferred',
+        packageSize: 12,
+        price: 2.544,
+        netPrice: 2.544,
+        grossPrice: null,
+        preferred: true
+      }
+    ];
+
+    expect(sortSupplierOffersByUnitPrice(offers)[0]?.supplierId).toBe('cheaper-raw');
   });
 });
