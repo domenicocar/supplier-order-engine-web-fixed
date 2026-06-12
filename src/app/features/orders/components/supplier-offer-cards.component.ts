@@ -19,7 +19,10 @@ const SUPPLIER_COLORS = [
   { accent: '#3f7a4f', soft: '#f0f8f2' },
   { accent: '#ea580c', soft: '#fff7ed' },
   { accent: '#0759c7', soft: '#eaf3ff' },
-  { accent: '#dc2626', soft: '#fef2f2' }
+  { accent: '#dc2626', soft: '#fef2f2' },
+  { accent: '#7e22ce', soft: '#faf5ff' },
+  { accent: '#0e7490', soft: '#ecfeff' },
+  { accent: '#a16207', soft: '#fefce8' }
 ] as const;
 const supplierColors = new Map<string, (typeof SUPPLIER_COLORS)[number]>();
 
