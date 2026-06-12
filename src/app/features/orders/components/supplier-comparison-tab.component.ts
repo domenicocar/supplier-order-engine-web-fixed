@@ -45,6 +45,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
           placeholder="Cerca per EAN, descrizione o fornitore..."
           class="app-input w-full lg:max-w-xl"
           [value]="searchTerm()"
+          [disabled]="loading()"
           (input)="onSearchChange($event)"
         />
 
@@ -56,6 +57,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
               [class]="catalogViewMode() === 'all'
                 ? 'border border-[var(--brand-primary)] bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]'
                 : 'border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]'"
+              [disabled]="loading()"
               (click)="setCatalogViewMode('all')"
             >
               Tutto il catalogo
@@ -66,6 +68,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
               [class]="catalogViewMode() === 'ordered'
                 ? 'border border-[var(--brand-primary)] bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]'
                 : 'border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)]'"
+              [disabled]="loading()"
               (click)="setCatalogViewMode('ordered')"
             >
               Prodotti ordinati
@@ -95,7 +98,7 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
       } @else {
         <div class="mt-6 overflow-hidden rounded-2xl border border-[var(--app-border)]">
           <p-table
-            [value]="paginatedRows()"
+            [value]="loading() ? skeletonTableRows : paginatedRows()"
             dataKey="lineId"
             [rowTrackBy]="trackByEan"
             responsiveLayout="scroll"
@@ -111,7 +114,38 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
               </tr>
             </ng-template>
             <ng-template pTemplate="body" let-row>
-              <tr>
+              @if (loading()) {
+                <tr aria-hidden="true">
+                  <td>
+                    <div class="animate-pulse space-y-2">
+                      <div class="h-4 w-28 rounded-full bg-slate-200"></div>
+                      <div class="h-3 w-16 rounded-full bg-slate-100"></div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="animate-pulse space-y-2">
+                      <div class="h-4 w-full max-w-80 rounded-full bg-slate-200"></div>
+                      <div class="h-4 w-2/3 max-w-52 rounded-full bg-slate-100"></div>
+                    </div>
+                  </td>
+                  <td class="min-w-72">
+                    <div class="h-10 w-full animate-pulse rounded-2xl bg-slate-200"></div>
+                  </td>
+                  <td class="min-w-32">
+                    <div class="h-10 w-full max-w-40 animate-pulse rounded-xl bg-slate-200"></div>
+                  </td>
+                  <td class="min-w-40">
+                    <div class="animate-pulse space-y-2">
+                      <div class="h-4 w-20 rounded-full bg-slate-200"></div>
+                      <div class="h-3 w-14 rounded-full bg-slate-100"></div>
+                    </div>
+                  </td>
+                  <td class="min-w-40">
+                    <div class="h-4 w-20 animate-pulse rounded-full bg-slate-200"></div>
+                  </td>
+                </tr>
+              } @else {
+                <tr>
                 <td>
                   <div class="flex flex-col gap-1">
                     <span>{{ row.ean }}</span>
@@ -242,7 +276,8 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
                     {{ formatSupplierTotalDue(row) }}
                   </div>
                 </td>
-              </tr>
+                </tr>
+              }
             </ng-template>
             <ng-template pTemplate="emptymessage">
               <tr>
@@ -254,33 +289,35 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
           </p-table>
         </div>
 
-        <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p class="text-sm text-[var(--app-text-muted)]">{{ rangeLabel() }}</p>
+        @if (!loading()) {
+          <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-sm text-[var(--app-text-muted)]">{{ rangeLabel() }}</p>
 
-          <div class="flex items-center gap-2">
-            <button
-              pButton
-              type="button"
-              class="btn-secondary justify-center !rounded-2xl !px-4 !py-2 !text-sm !font-semibold"
-              [disabled]="currentPage() === 1"
-              (click)="goToPreviousPage()"
-            >
-              Precedente
-            </button>
-            <span class="text-sm text-[var(--app-text-muted)]">
-              Pagina {{ displayPage() }} di {{ totalPages() }}
-            </span>
-            <button
-              pButton
-              type="button"
-              class="btn-secondary justify-center !rounded-2xl !px-4 !py-2 !text-sm !font-semibold"
-              [disabled]="currentPage() >= totalPages()"
-              (click)="goToNextPage()"
-            >
-              Successiva
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                pButton
+                type="button"
+                class="btn-secondary justify-center !rounded-2xl !px-4 !py-2 !text-sm !font-semibold"
+                [disabled]="currentPage() === 1"
+                (click)="goToPreviousPage()"
+              >
+                Precedente
+              </button>
+              <span class="text-sm text-[var(--app-text-muted)]">
+                Pagina {{ displayPage() }} di {{ totalPages() }}
+              </span>
+              <button
+                pButton
+                type="button"
+                class="btn-secondary justify-center !rounded-2xl !px-4 !py-2 !text-sm !font-semibold"
+                [disabled]="currentPage() >= totalPages()"
+                (click)="goToNextPage()"
+              >
+                Successiva
+              </button>
+            </div>
           </div>
-        </div>
+        }
       }
     </section>
   `,
@@ -508,6 +545,10 @@ export class SupplierComparisonTabComponent {
   readonly searchTerm = signal('');
   readonly catalogViewMode = signal<'all' | 'ordered'>('all');
   readonly currentPage = signal(1);
+  readonly skeletonTableRows = Array.from(
+    { length: 8 },
+    (_, index) => ({ lineId: `comparison-skeleton-${index}` }) as SupplierComparisonTableRow
+  );
 
   readonly filteredRows = computed(() => {
     const normalizedSearch = this.searchTerm().trim().toLowerCase();

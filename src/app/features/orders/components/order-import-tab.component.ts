@@ -49,10 +49,10 @@ type DraftSupplierCard = {
       <section class="surface-panel p-6 md:p-7">
         <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p class="section-eyebrow">1. Import ordine</p>
-            <h2 class="section-title">Importazione ordine da PDF, Excel o CSV</h2>
+            <p class="section-eyebrow">1. Import riassortimento</p>
+            <h2 class="section-title">Importazione riassortimento</h2>
             <p class="section-copy">
-              Carica un file ordine. Per i file tabellari mostriamo un'anteprima e
+              Carica un file riassortimento. Per i file tabellari mostriamo un'anteprima e
               ti lasciamo confermare le colonne per EAN, descrizione e quantita
               prima dell'import definitivo.
             </p>
@@ -63,7 +63,7 @@ type DraftSupplierCard = {
             class="shrink-0 self-start rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
             (click)="openOrderProductsDialog()"
           >
-            Vedi ordine
+            Vedi riassortimento
           </button>
         </div>
 
@@ -76,7 +76,7 @@ type DraftSupplierCard = {
               <i class="pi pi-file-import text-lg"></i>
             </div>
             <div class="min-w-0">
-              <h3 class="text-base font-semibold text-[var(--app-text)]">File ordine</h3>
+              <h3 class="text-base font-semibold text-[var(--app-text)]">File riassortimento</h3>
               <p class="mt-1 text-sm leading-6 text-[var(--app-text-muted)]">
                 Excel, CSV o PDF. Colonne attese: EAN, descrizione, quantita.
               </p>
@@ -132,7 +132,7 @@ type DraftSupplierCard = {
                 class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700"
               >
                 <i class="pi pi-check-circle text-[0.7rem]" aria-hidden="true"></i>
-                <span>{{ draftItemsCount() }} prodotti nel draft</span>
+                <span>{{ draftItemsCount() }} prodotti nel riassortimento</span>
               </span>
             }
           </div>
@@ -153,11 +153,11 @@ type DraftSupplierCard = {
           [resizable]="false"
           [dismissableMask]="true"
           [style]="{ width: 'min(960px, 96vw)' }"
-          header="Prodotti ordine"
+          header="Prodotti riassortimento"
         >
           <div class="flex flex-col gap-4">
             <p class="text-sm leading-6 text-slate-500">
-              Elenco dei prodotti attualmente presenti nel draft ordine.
+              Elenco dei prodotti attualmente presenti nel riassortimento.
             </p>
 
             <div class="overflow-hidden rounded-2xl border border-slate-200">
@@ -185,7 +185,7 @@ type DraftSupplierCard = {
                 <ng-template pTemplate="emptymessage">
                   <tr>
                     <td colspan="3" class="px-4 py-5 text-sm text-slate-500">
-                      Nessun prodotto presente. Importa un file ordine per popolare la tabella.
+                      Nessun prodotto presente. Importa un file riassortimento per popolare la tabella.
                     </td>
                   </tr>
                 </ng-template>
@@ -209,7 +209,7 @@ type DraftSupplierCard = {
                   <p class="mt-1 text-sm text-slate-500">
                     {{
                       preview.fileType === 'pdf'
-                        ? 'Anteprima import PDF. Conferma per salvare i prodotti nel draft.'
+                        ? 'Anteprima import PDF. Conferma per salvare i prodotti nel riassortimento.'
                         : 'Controlla il mapping delle colonne prima di importare.'
                     }}
                   </p>
@@ -577,26 +577,41 @@ type DraftSupplierCard = {
                       }
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-50"
-                    [class]="(supplier.preferred ?? false)
-                      ? 'border-[var(--app-success-border)] bg-[var(--app-success-bg)] text-[var(--app-success-text)]'
-                      : 'border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:border-[var(--app-success-border)] hover:text-[var(--app-success-text)]'"
-                    [disabled]="supplierPreferenceUpdatingId() !== null"
-                    title="A parita di prezzo viene scelto il fornitore favorito. Una scelta manuale mantiene sempre la priorita."
-                    [attr.aria-label]="(supplier.preferred ?? false) ? 'Rimuovi fornitore favorito' : 'Imposta fornitore favorito'"
-                    (click)="supplierPreferredChanged.emit({ supplierId: supplier.id, preferred: !(supplier.preferred ?? false) })"
-                  >
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                      <path
-                        [attr.fill]="(supplier.preferred ?? false) ? 'currentColor' : 'none'"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M11.48 3.5a.56.56 0 0 1 1.04 0l2.1 5.36a.56.56 0 0 0 .47.35l5.74.43a.56.56 0 0 1 .32.98l-4.37 3.74a.56.56 0 0 0-.18.56l1.33 5.6a.56.56 0 0 1-.84.61L12.3 18.2a.56.56 0 0 0-.6 0l-4.88 2.93a.56.56 0 0 1-.84-.61l1.33-5.6a.56.56 0 0 0-.18-.56L2.76 10.6a.56.56 0 0 1 .32-.98l5.74-.43a.56.56 0 0 0 .47-.35z"
-                      />
-                    </svg>
-                  </button>
+                  <div class="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      class="inline-flex h-10 w-10 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-50"
+                      [class]="(supplier.preferred ?? false)
+                        ? 'border-[var(--app-success-border)] bg-[var(--app-success-bg)] text-[var(--app-success-text)]'
+                        : 'border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text-muted)] hover:border-[var(--app-success-border)] hover:text-[var(--app-success-text)]'"
+                      [disabled]="supplierPreferenceUpdatingId() !== null || supplierRemovingId() !== null"
+                      title="A parita di prezzo viene scelto il fornitore favorito. Una scelta manuale mantiene sempre la priorita."
+                      [attr.aria-label]="(supplier.preferred ?? false) ? 'Rimuovi fornitore favorito' : 'Imposta fornitore favorito'"
+                      (click)="supplierPreferredChanged.emit({ supplierId: supplier.id, preferred: !(supplier.preferred ?? false) })"
+                    >
+                      <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                        <path
+                          [attr.fill]="(supplier.preferred ?? false) ? 'currentColor' : 'none'"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M11.48 3.5a.56.56 0 0 1 1.04 0l2.1 5.36a.56.56 0 0 0 .47.35l5.74.43a.56.56 0 0 1 .32.98l-4.37 3.74a.56.56 0 0 0-.18.56l1.33 5.6a.56.56 0 0 1-.84.61L12.3 18.2a.56.56 0 0 0-.6 0l-4.88 2.93a.56.56 0 0 1-.84-.61l1.33-5.6a.56.56 0 0 0-.18-.56L2.76 10.6a.56.56 0 0 1 .32-.98l5.74-.43a.56.56 0 0 0 .47-.35z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-danger-border)] bg-[var(--app-danger-bg)] text-[var(--app-danger-text)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+                      [disabled]="supplierRemovingId() !== null || supplierPreferenceUpdatingId() !== null"
+                      [attr.aria-label]="'Rimuovi il fornitore ' + supplier.name"
+                      title="Rimuovi fornitore dall'ordine"
+                      (click)="supplierRemovalRequested.emit(supplier)"
+                    >
+                      <i
+                        [class]="supplierRemovingId() === supplier.id ? 'pi pi-spin pi-spinner' : 'pi pi-trash'"
+                        aria-hidden="true"
+                      ></i>
+                    </button>
+                  </div>
                 </div>
 
                 <div class="mt-4">
@@ -636,31 +651,118 @@ type DraftSupplierCard = {
                   </div>
                 </label>
 
-                <div class="mt-3 flex flex-wrap items-center gap-2">
-                  @if (shouldShowStatusBadge(supplierCardState(supplier.id).status)) {
-                    <span
-                      [class]="statusBadgeClass(supplierCardState(supplier.id).status)"
-                      class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]"
+                @if (supplierCardState(supplier.id).status !== 'completed') {
+                  <div class="mt-3 flex flex-wrap items-center gap-2">
+                    @if (shouldShowStatusBadge(supplierCardState(supplier.id).status)) {
+                      <span
+                        [class]="statusBadgeClass(supplierCardState(supplier.id).status)"
+                        class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em]"
+                      >
+                        {{ statusLabel(supplierCardState(supplier.id).status) }}
+                      </span>
+                    }
+                  </div>
+
+                  <p
+                    class="mt-3 text-sm font-medium"
+                    [class]="statusMessageClass(supplierCardState(supplier.id).status)"
+                  >
+                    {{ supplierCardMessage(supplier.id) }}
+                  </p>
+                }
+
+                @if (persistedSupplierMapping(supplier.id); as savedMapping) {
+                  <details class="group mt-3">
+                    <summary
+                      class="flex cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-1 py-2 text-sm transition hover:bg-[var(--app-surface-muted)]"
                     >
-                      {{ statusLabel(supplierCardState(supplier.id).status) }}
-                    </span>
-                  }
-                  @if (supplierCardState(supplier.id).fileName) {
-                    <span class="rounded-full border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1 text-xs font-medium text-[var(--app-text-muted)]">
+                      <span
+                        class="min-w-0 truncate rounded-full border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1 text-xs font-medium text-[var(--app-text-muted)]"
+                      >
+                        {{ supplierCardState(supplier.id).fileName }}
+                      </span>
+                      <span class="ml-auto inline-flex shrink-0 items-center gap-2 font-semibold text-black">
+                        <span class="group-open:hidden">Mostra mapping</span>
+                        <span class="hidden group-open:inline">Nascondi mapping</span>
+                        <i class="pi pi-chevron-down text-xs transition-transform group-open:rotate-180" aria-hidden="true"></i>
+                      </span>
+                    </summary>
+
+                    <div class="mt-2 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+                      <h4 class="text-sm font-semibold text-[var(--app-text)]">
+                        Conferma colonne
+                      </h4>
+
+                      <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-[var(--app-text-muted)]">EAN</label>
+                          <select class="app-input w-full rounded-xl px-3 py-2" [ngModel]="savedMapping.eanColumnIndex" disabled>
+                            @for (option of persistedMappingColumns(supplier.id, savedMapping); track option.columnIndex) {
+                              <option [ngValue]="option.columnIndex">{{ columnLabel(option) }}</option>
+                            }
+                          </select>
+                        </div>
+                        <div>
+                          <label class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-[var(--app-text-muted)]">Descrizione</label>
+                          <select class="app-input w-full rounded-xl px-3 py-2" [ngModel]="savedMapping.descriptionColumnIndex" disabled>
+                            @for (option of persistedMappingColumns(supplier.id, savedMapping); track option.columnIndex) {
+                              <option [ngValue]="option.columnIndex">{{ columnLabel(option) }}</option>
+                            }
+                          </select>
+                        </div>
+                        <div>
+                          <label class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-[var(--app-text-muted)]">Prezzo netto</label>
+                          <select class="app-input w-full rounded-xl px-3 py-2" [ngModel]="savedMapping.netPriceColumnIndex" disabled>
+                            @for (option of persistedMappingColumns(supplier.id, savedMapping); track option.columnIndex) {
+                              <option [ngValue]="option.columnIndex">{{ columnLabel(option) }}</option>
+                            }
+                          </select>
+                        </div>
+                        <div>
+                          <label class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-[var(--app-text-muted)]">Pack size</label>
+                          <select class="app-input w-full rounded-xl px-3 py-2" [ngModel]="savedMapping.packageSizeColumnIndex ?? -1" disabled>
+                            <option [ngValue]="-1">Nessuna</option>
+                            @for (option of persistedMappingColumns(supplier.id, savedMapping); track option.columnIndex) {
+                              <option [ngValue]="option.columnIndex">{{ columnLabel(option) }}</option>
+                            }
+                          </select>
+                        </div>
+                        <div>
+                          <label class="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-[var(--app-text-muted)]">Qta / Ordine</label>
+                          <select class="app-input w-full rounded-xl px-3 py-2" [ngModel]="persistedQuantityColumnIndex(savedMapping)" disabled>
+                            <option [ngValue]="-1">Nessuna</option>
+                            @for (option of persistedMappingColumns(supplier.id, savedMapping); track option.columnIndex) {
+                              <option [ngValue]="option.columnIndex">{{ columnLabel(option) }}</option>
+                            }
+                          </select>
+                        </div>
+                      </div>
+
+                      @if (persistedSupplierPreview(supplier.id); as savedPreview) {
+                        @if (savedPreview.previewRow; as previewRow) {
+                          <div class="mt-4 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-3 text-sm text-[var(--app-text-muted)]">
+                            <p><strong>EAN:</strong> {{ previewRow.ean }}</p>
+                            <p><strong>Descrizione:</strong> {{ previewRow.description }}</p>
+                            <p><strong>Pack size:</strong> {{ previewRow.packageSize }}</p>
+                            <p><strong>Prezzo netto:</strong> {{ previewRow.netPrice }}</p>
+                            <p class="mt-2 text-xs text-[var(--app-text-muted)]">
+                              {{ savedPreview.importedProductsCount }} prodotti letti.
+                            </p>
+                          </div>
+                        }
+                      }
+                    </div>
+                  </details>
+                } @else if (supplierCardState(supplier.id).fileName) {
+                  <div class="mt-3 flex justify-start">
+                    <span class="min-w-0 truncate rounded-full border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1 text-xs font-medium text-[var(--app-text-muted)]">
                       {{ supplierCardState(supplier.id).fileName }}
                     </span>
-                  }
-                </div>
-
-                <p
-                  class="mt-3 text-sm font-medium"
-                  [class]="statusMessageClass(supplierCardState(supplier.id).status)"
-                >
-                  {{ supplierCardMessage(supplier.id) }}
-                </p>
+                  </div>
+                }
 
                 @if (supplierCardState(supplier.id).updatedAt) {
-                  <p class="mt-2 text-xs text-[var(--app-text-muted)]">
+                  <p class="mt-3 text-right text-xs text-[var(--app-text-muted)]">
                     Ultimo aggiornamento
                     {{ supplierCardState(supplier.id).updatedAt | date: 'dd/MM/yyyy HH:mm' }}
                   </p>
@@ -830,6 +932,7 @@ export class OrderImportTabComponent {
   >({});
   readonly supplierCreating = input(false);
   readonly supplierPreferenceUpdatingId = input<string | null>(null);
+  readonly supplierRemovingId = input<string | null>(null);
   readonly supplierComparisonLoading = input(false);
   readonly hasSupplierUploads = input(false);
 
@@ -846,6 +949,7 @@ export class OrderImportTabComponent {
   }>();
   readonly supplierFileSelected = output<{ supplierId: string; file: File }>();
   readonly supplierPreferredChanged = output<{ supplierId: string; preferred: boolean }>();
+  readonly supplierRemovalRequested = output<SupplierDefinition>();
   readonly supplierMappingPreviewRequested = output<{
     supplierId: string;
     file: File;
@@ -909,7 +1013,7 @@ export class OrderImportTabComponent {
         fileName,
         message:
           this.orderFileMessage() ||
-          `${this.draftItemsCount()} prodotti gi\u00E0 importati nel draft.`,
+          `${this.draftItemsCount()} prodotti gi\u00E0 importati nel riassortimento.`,
       };
     }
 
@@ -917,7 +1021,7 @@ export class OrderImportTabComponent {
       status: 'idle',
       fileName,
       message:
-        this.orderFileMessage() || 'Seleziona un file ordine per iniziare.',
+        this.orderFileMessage() || 'Seleziona un file riassortimento per iniziare.',
     };
   });
 
@@ -1329,6 +1433,50 @@ export class OrderImportTabComponent {
     );
   }
 
+  persistedSupplierMapping(supplierId: string): SupplierColumnMapping | null {
+    return this.latestSupplierUpload(supplierId)?.columnMapping ?? null;
+  }
+
+  persistedSupplierPreview(supplierId: string) {
+    return this.latestSupplierUpload(supplierId)?.preview ?? null;
+  }
+
+  persistedMappingColumns(
+    supplierId: string,
+    mapping: SupplierColumnMapping,
+  ): WorksheetColumnOption[] {
+    const previewColumns = this.persistedSupplierPreview(supplierId)?.columns ?? [];
+
+    if (previewColumns.length > 0) {
+      return previewColumns;
+    }
+
+    const indexes = [
+      mapping.eanColumnIndex,
+      mapping.descriptionColumnIndex,
+      mapping.netPriceColumnIndex,
+      mapping.packageSizeColumnIndex,
+      mapping.orderQuantityColumnIndex,
+      mapping.availabilityColumnIndex,
+    ].filter((value): value is number => value !== null && value >= 0);
+
+    return [...new Set(indexes)]
+      .sort((left, right) => left - right)
+      .map((columnIndex) => ({
+        columnIndex,
+        columnLetter: this.columnLetterFromIndex(columnIndex),
+        label: `Colonna ${columnIndex + 1}`,
+      }));
+  }
+
+  persistedQuantityColumnIndex(mapping: SupplierColumnMapping): number {
+    return (
+      mapping.orderQuantityColumnIndex ??
+      mapping.availabilityColumnIndex ??
+      -1
+    );
+  }
+
   columnLabel(option: WorksheetColumnOption): string {
     const label =
       option.label.trim().length > 0 ? option.label : 'Colonna senza nome';
@@ -1347,6 +1495,19 @@ export class OrderImportTabComponent {
       left.netPriceColumnIndex === right.netPriceColumnIndex &&
       left.grossPriceColumnIndex === right.grossPriceColumnIndex
     );
+  }
+
+  private columnLetterFromIndex(columnIndex: number): string {
+    let value = columnIndex + 1;
+    let result = '';
+
+    while (value > 0) {
+      const remainder = (value - 1) % 26;
+      result = String.fromCharCode(65 + remainder) + result;
+      value = Math.floor((value - 1) / 26);
+    }
+
+    return result;
   }
 
   uploadCardClass(status: UploadCardStatus): string {

@@ -1,4 +1,4 @@
-import { SupplierDefinition } from './supplier.models';
+import type { SupplierDefinition } from './supplier.models';
 
 export interface WorksheetColumnOption {
   columnIndex: number;
@@ -135,6 +135,15 @@ export interface DeleteOrderResponse {
   cleanupWarnings: string[];
 }
 
+export interface RemoveOrderSupplierResponse {
+  affectedItemsCount: number;
+  cleanupWarnings: string[];
+  orderId: string;
+  status: 'removed';
+  supplierId: string;
+  supplierName: string;
+}
+
 export interface SupplierComparisonOffer {
   supplierId: string;
   supplierName: string;
@@ -160,6 +169,7 @@ export interface SupplierUploadResult {
   supplierId: string;
   fileName: string;
   uploadedAt: string | null;
+  columnMapping?: SupplierColumnMapping | null;
   message?: string;
   extension?: string | null;
   preview?: SupplierUploadPreview | null;

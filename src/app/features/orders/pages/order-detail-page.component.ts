@@ -59,6 +59,14 @@ import {
 import { OrderImportTabComponent } from '../components/order-import-tab.component';
 import { SupplierComparisonTabComponent } from '../components/supplier-comparison-tab.component';
 
+type ToastKind = 'success' | 'error' | 'warning' | 'info';
+
+interface ToastNotification {
+  kind: ToastKind;
+  message: string;
+  title: string;
+}
+
 @Component({
   selector: 'app-order-detail-page',
   standalone: true,
@@ -136,23 +144,33 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
     } @else {
       @if (order(); as currentOrder) {
         <section class="flex flex-col gap-6">
-          @if (successToastMessage()) {
-            <div class="pointer-events-none fixed bottom-4 left-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 sm:bottom-6">
-              <div class="pointer-events-auto app-alert-success flex items-start gap-3 rounded-3xl px-4 py-4 shadow-[0_18px_45px_rgba(6,95,70,0.18)]">
-                <div class="app-icon-circle mt-0.5">
-                  <i class="pi pi-check" aria-hidden="true"></i>
+          @if (toastNotification(); as toast) {
+            <div
+              class="pointer-events-none fixed bottom-4 left-1/2 z-[60] w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 sm:bottom-6"
+              [attr.role]="toast.kind === 'error' ? 'alert' : 'status'"
+              [attr.aria-live]="toast.kind === 'error' ? 'assertive' : 'polite'"
+            >
+              <div
+                class="pointer-events-auto flex items-start gap-3 rounded-3xl border px-4 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.18)]"
+                [class]="toastContainerClass(toast.kind)"
+              >
+                <div
+                  class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-white/70"
+                  [class]="toastIconContainerClass(toast.kind)"
+                >
+                  <i [class]="toastIconClass(toast.kind)" aria-hidden="true"></i>
                 </div>
                 <div class="min-w-0 flex-1">
-                  <p class="text-sm font-semibold">Prodotto associato</p>
-                  <p class="mt-1 text-sm">
-                    {{ successToastMessage() }}
+                  <p class="text-sm font-semibold">{{ toast.title }}</p>
+                  <p class="mt-1 text-sm leading-6">
+                    {{ toast.message }}
                   </p>
                 </div>
                 <button
                   type="button"
-                  class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200/80 bg-white/70 text-emerald-900 transition hover:bg-white"
+                  class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-current/20 bg-white/70 transition hover:bg-white"
                   aria-label="Chiudi notifica"
-                  (click)="dismissSuccessToast()"
+                  (click)="dismissToast()"
                 >
                   <i class="pi pi-times text-xs" aria-hidden="true"></i>
                 </button>
@@ -213,12 +231,6 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
             </div>
           }
 
-          @if (pageNotice()) {
-            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
-              {{ pageNotice() }}
-            </div>
-          }
-
           @if (isReadOnlyOrder()) {
             <div class="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-4 py-4 text-sm text-[var(--app-text)]">
               Questo ordine e stato chiuso definitivamente ed e ora disponibile solo in modalita storica.
@@ -255,6 +267,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                     [supplierPreviewState]="supplierPreviewState()"
                     [supplierCreating]="supplierCreating()"
                     [supplierPreferenceUpdatingId]="supplierPreferenceUpdatingId()"
+                    [supplierRemovingId]="supplierRemovingId()"
                     [supplierComparisonLoading]="supplierComparisonLoading()"
                     [hasSupplierUploads]="hasSupplierUploads()"
                     (orderFileSelected)="onOrderFileSelected($event)"
@@ -262,6 +275,7 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
                     (supplierDraftFileSelected)="onSupplierDraftFileSelected($event)"
                     (supplierFileSelected)="onSupplierFileSelected($event)"
                     (supplierPreferredChanged)="onSupplierPreferredChanged($event)"
+                    (supplierRemovalRequested)="openSupplierRemovalDialog($event)"
                     (supplierMappingPreviewRequested)="onSupplierMappingPreviewRequested($event)"
                     (supplierMappingConfirmed)="onSupplierMappingConfirmed($event)"
                     (supplierComparisonRequested)="loadSupplierComparison()"
@@ -306,6 +320,60 @@ import { SupplierComparisonTabComponent } from '../components/supplier-compariso
               </p-tabpanel>
             </p-tabpanels>
           </p-tabs>
+
+          <p-dialog
+            [visible]="!!supplierRemovalTarget()"
+            (visibleChange)="onSupplierRemovalDialogVisibilityChange($event)"
+            [modal]="true"
+            [draggable]="false"
+            [resizable]="false"
+            [dismissableMask]="supplierRemovingId() === null"
+            [style]="{ width: 'min(540px, 96vw)' }"
+            header="Rimuovi fornitore"
+          >
+            @if (supplierRemovalTarget(); as supplier) {
+              <div class="flex flex-col gap-4">
+                <p class="text-sm leading-7 text-[var(--app-text-muted)]">
+                  Stai per rimuovere
+                  <span class="font-semibold text-[var(--app-text)]">{{ supplier.name }}</span>
+                  da questo ordine.
+                </p>
+
+                <div class="rounded-2xl border border-[var(--app-danger-border)] bg-[var(--app-danger-bg)] px-4 py-4 text-sm leading-6 text-[var(--app-danger-text)]">
+                  Il file caricato per questo fornitore verra eliminato.
+                  @if (supplierAssignedItemsCount(supplier.id) > 0) {
+                    {{ supplierAssignedItemsCount(supplier.id) }}
+                    righe assegnate torneranno senza fornitore.
+                  }
+                </div>
+
+                <div class="flex justify-end gap-3">
+                  <button
+                    pButton
+                    type="button"
+                    class="btn-secondary justify-center !rounded-2xl !px-4 !py-2.5 !text-sm !font-semibold"
+                    [disabled]="supplierRemovingId() !== null"
+                    (click)="closeSupplierRemovalDialog()"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    pButton
+                    type="button"
+                    class="justify-center !rounded-2xl !border !border-[var(--app-danger-border)] !bg-[var(--app-danger-bg)] !px-4 !py-2.5 !text-sm !font-semibold !text-[var(--app-danger-text)]"
+                    [disabled]="supplierRemovingId() !== null"
+                    (click)="confirmSupplierRemoval()"
+                  >
+                    {{
+                      supplierRemovingId() === supplier.id
+                        ? 'Rimozione...'
+                        : 'Conferma rimozione'
+                    }}
+                  </button>
+                </div>
+              </div>
+            }
+          </p-dialog>
 
           <p-dialog
             [visible]="closeDialogVisible()"
@@ -576,7 +644,7 @@ export class OrderDetailPageComponent {
   });
   private draftSyncTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private catalogSearchTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private successToastTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private catalogSearchRequestSequence = 0;
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
@@ -603,8 +671,7 @@ export class OrderDetailPageComponent {
   readonly catalogAssociationSaving = signal(false);
   readonly catalogAssociationError = signal<string | null>(null);
   readonly pageError = signal<string | null>(null);
-  readonly pageNotice = signal<string | null>(null);
-  readonly successToastMessage = signal<string | null>(null);
+  readonly toastNotification = signal<ToastNotification | null>(null);
   readonly supplierComparisonRequested = signal(false);
   readonly supplierComparisonLoading = signal(false);
   readonly supplierComparisonError = signal<string | null>(null);
@@ -616,6 +683,8 @@ export class OrderDetailPageComponent {
   readonly supplierPreviewState = signal<Record<string, SupplierUploadPreviewState>>({});
   readonly supplierCreating = signal(false);
   readonly supplierPreferenceUpdatingId = signal<string | null>(null);
+  readonly supplierRemovingId = signal<string | null>(null);
+  readonly supplierRemovalTarget = signal<SupplierDefinition | null>(null);
   readonly fetchedOrderIds = signal<Record<string, boolean>>({});
   readonly autoComparisonAttemptedOrderIds = signal<Record<string, boolean>>({});
   readonly supplierAvailabilityLabel = supplierAvailabilityLabel;
@@ -690,8 +759,19 @@ export class OrderDetailPageComponent {
     this.destroyRef.onDestroy(() => {
       this.clearDraftSyncTimeout();
       this.clearCatalogSearchTimeout();
-      this.clearSuccessToastTimeout();
+      this.clearToastTimeout();
     });
+
+    effect(
+      () => {
+        const message = this.pageError();
+
+        if (message) {
+          this.showToast('error', 'Operazione non riuscita', message);
+        }
+      },
+      { allowSignalWrites: true }
+    );
 
     effect(
       () => {
@@ -790,10 +870,10 @@ export class OrderDetailPageComponent {
       await this.refreshOrderAfterGenericImport(orderId, response);
       this.orderImportPreviewState.set(null);
       this.orderFileMessage.set(
-        `Importazione completata: ${response.importedItems} prodotti aggiunti al draft.`
+        `Importazione completata: ${response.importedItems} prodotti aggiunti al riassortimento.`
       );
     } catch (error: unknown) {
-      this.orderFileMessage.set(this.toMessage(error, 'Import ordine non riuscito.'));
+      this.orderFileMessage.set(this.toMessage(error, 'Import riassortimento non riuscito.'));
     } finally {
       this.orderFileImporting.set(false);
     }
@@ -833,7 +913,7 @@ export class OrderDetailPageComponent {
       );
     } catch (error: unknown) {
       this.orderImportPreviewState.set(null);
-      this.orderFileMessage.set(this.toMessage(error, 'Analisi file ordine non riuscita.'));
+      this.orderFileMessage.set(this.toMessage(error, 'Analisi file riassortimento non riuscita.'));
     } finally {
       this.orderFileUploading.set(false);
     }
@@ -1299,6 +1379,109 @@ export class OrderDetailPageComponent {
     }
   }
 
+  openSupplierRemovalDialog(supplier: SupplierDefinition): void {
+    if (this.isReadOnlyOrder()) {
+      return;
+    }
+
+    this.supplierRemovalTarget.set(supplier);
+  }
+
+  closeSupplierRemovalDialog(): void {
+    if (this.supplierRemovingId() !== null) {
+      return;
+    }
+
+    this.supplierRemovalTarget.set(null);
+  }
+
+  onSupplierRemovalDialogVisibilityChange(visible: boolean): void {
+    if (!visible) {
+      this.closeSupplierRemovalDialog();
+    }
+  }
+
+  supplierAssignedItemsCount(supplierId: string): number {
+    return this.order()?.items.filter((item) => item.supplierId === supplierId).length ?? 0;
+  }
+
+  async confirmSupplierRemoval(): Promise<void> {
+    const orderId = this.orderId();
+    const supplier = this.supplierRemovalTarget();
+
+    if (!orderId || !supplier || this.isReadOnlyOrder()) {
+      return;
+    }
+
+    this.supplierRemovingId.set(supplier.id);
+    this.pageError.set(null);
+    this.dismissToast();
+
+    try {
+      const response = await firstValueFrom(
+        this.ordersService.removeOrderSupplier(orderId, supplier.id)
+      );
+      this.ordersStore.removeSupplier(orderId, supplier.id);
+      this.clearSupplierClientState(supplier.id);
+      this.supplierComparisonRequested.set(false);
+      this.supplierComparisonSelections.set({});
+      this.supplierComparisonQuantities.set({});
+      this.supplierRemovalTarget.set(null);
+
+      let refreshWarning = '';
+
+      try {
+        const refreshedOrder = await firstValueFrom(this.ordersService.getOrderById(orderId));
+        this.ordersStore.upsertOrder(refreshedOrder.order);
+      } catch {
+        refreshWarning = ' Il dettaglio verra riallineato al prossimo caricamento.';
+      }
+
+      this.activeTab.set('comparison');
+      this.supplierComparisonRequested.set(true);
+      this.supplierComparisonLoading.set(true);
+      this.supplierComparisonError.set(null);
+
+      let comparisonWarning = '';
+
+      try {
+        const comparisonLoaded = await this.refreshSupplierComparison(
+          orderId,
+          'Fornitore rimosso, ma non sono riuscito ad aggiornare il confronto.'
+        );
+
+        if (!comparisonLoaded) {
+          comparisonWarning =
+            ' Non sono riuscito ad aggiornare il confronto fornitori.';
+        }
+      } finally {
+        this.supplierComparisonLoading.set(false);
+      }
+
+      const affectedMessage =
+        response.affectedItemsCount > 0
+          ? ` ${response.affectedItemsCount} righe sono tornate senza fornitore.`
+          : '';
+      const cleanupMessage =
+        response.cleanupWarnings.length > 0 ? ` ${response.cleanupWarnings.join(' ')}` : '';
+      this.showToast(
+        response.cleanupWarnings.length > 0 || refreshWarning || comparisonWarning
+          ? 'warning'
+          : 'success',
+        'Fornitore rimosso',
+        `${response.supplierName} rimosso dall'ordine.${affectedMessage}${cleanupMessage}${refreshWarning}${comparisonWarning}`
+      );
+    } catch (error: unknown) {
+      const message = this.toMessage(
+        error,
+        'Non sono riuscito a rimuovere il fornitore dall\'ordine.'
+      );
+      this.showToast('error', 'Rimozione non riuscita', message);
+    } finally {
+      this.supplierRemovingId.set(null);
+    }
+  }
+
   exportMissingProducts(): void {
     if (this.openPaymentRequiredDialogIfNeeded('export-order')) {
       return;
@@ -1337,7 +1520,7 @@ export class OrderDetailPageComponent {
 
     this.closing.set(true);
     this.pageError.set(null);
-    this.pageNotice.set(null);
+    this.dismissToast();
 
     try {
       const draftItems = this.buildDraftOrderItems();
@@ -1368,11 +1551,17 @@ export class OrderDetailPageComponent {
       this.closeDialogVisible.set(false);
 
       if (response.cleanupWarnings.length > 0) {
-        this.pageNotice.set(
-          `Ordine chiuso. Avvisi pulizia asset: ${response.cleanupWarnings.join(' ')}`
+        this.showToast(
+          'warning',
+          'Ordine chiuso con avvisi',
+          `Avvisi pulizia asset: ${response.cleanupWarnings.join(' ')}`
         );
       } else {
-        this.pageNotice.set('Ordine chiuso correttamente e disponibile come storico.');
+        this.showToast(
+          'success',
+          'Ordine chiuso',
+          'L ordine e disponibile come storico.'
+        );
       }
     } catch (error: unknown) {
       this.pageError.set(this.toMessage(error, 'Chiusura ordine non riuscita.'));
@@ -1465,8 +1654,9 @@ export class OrderDetailPageComponent {
       );
 
       this.upsertProductMapping(orderId, mapping);
-      this.pageNotice.set(null);
-      this.showSuccessToast(
+      this.showToast(
+        'success',
+        'Prodotto associato',
         `Il prodotto ${sourceRow.ean} e stato mappato al catalogo e aggiunto all'ordine.`
       );
 
@@ -1481,13 +1671,17 @@ export class OrderDetailPageComponent {
       this.activeTab.set('export');
 
       if (orderReloaded && catalogReloaded) {
-        this.pageNotice.set(null);
+        return;
       } else if (orderReloaded) {
-        this.pageNotice.set(
+        this.showToast(
+          'warning',
+          'Associazione salvata con avvisi',
           `Associazione salvata per ${sourceRow.ean}. Il catalogo non si e aggiornato completamente.`
         );
       } else {
-        this.pageNotice.set(
+        this.showToast(
+          'warning',
+          'Associazione salvata con avvisi',
           `Associazione salvata per ${sourceRow.ean}, ma il dettaglio ordine non e stato ricaricato.`
         );
       }
@@ -1503,7 +1697,6 @@ export class OrderDetailPageComponent {
   private async loadOrder(orderId: string): Promise<void> {
     this.orderLoading.set(true);
     this.pageError.set(null);
-    this.pageNotice.set(null);
     this.markOrderAsFetched(orderId);
 
     try {
@@ -1520,6 +1713,11 @@ export class OrderDetailPageComponent {
         await this.autoLoadSupplierComparison(orderId);
       }
     } catch (error: unknown) {
+      if (error instanceof HttpErrorResponse && error.status === 404) {
+        this.ordersStore.removeOrder(orderId);
+        return;
+      }
+
       this.pageError.set(this.toMessage(error, 'Non sono riuscito a caricare l\'ordine.'));
     } finally {
       this.orderLoading.set(false);
@@ -1724,6 +1922,20 @@ export class OrderDetailPageComponent {
 
   private clearSupplierPreviewState(supplierId: string): void {
     this.supplierPreviewState.update((currentState) => {
+      const nextState = { ...currentState };
+      delete nextState[supplierId];
+      return nextState;
+    });
+  }
+
+  private clearSupplierClientState(supplierId: string): void {
+    this.clearSupplierPreviewState(supplierId);
+    this.supplierUploadState.update((currentState) => {
+      const nextState = { ...currentState };
+      delete nextState[supplierId];
+      return nextState;
+    });
+    this.supplierLoadingState.update((currentState) => {
       const nextState = { ...currentState };
       delete nextState[supplierId];
       return nextState;
@@ -2123,27 +2335,66 @@ export class OrderDetailPageComponent {
     this.catalogSearchTimeoutId = null;
   }
 
-  dismissSuccessToast(): void {
-    this.clearSuccessToastTimeout();
-    this.successToastMessage.set(null);
+  dismissToast(): void {
+    this.clearToastTimeout();
+    this.toastNotification.set(null);
   }
 
-  private showSuccessToast(message: string): void {
-    this.clearSuccessToastTimeout();
-    this.successToastMessage.set(message);
-    this.successToastTimeoutId = setTimeout(() => {
-      this.successToastTimeoutId = null;
-      this.successToastMessage.set(null);
+  private showToast(kind: ToastKind, title: string, message: string): void {
+    this.clearToastTimeout();
+    this.toastNotification.set({ kind, title, message });
+    this.toastTimeoutId = setTimeout(() => {
+      this.toastTimeoutId = null;
+      this.toastNotification.set(null);
     }, 8000);
   }
 
-  private clearSuccessToastTimeout(): void {
-    if (this.successToastTimeoutId === null) {
+  private clearToastTimeout(): void {
+    if (this.toastTimeoutId === null) {
       return;
     }
 
-    clearTimeout(this.successToastTimeoutId);
-    this.successToastTimeoutId = null;
+    clearTimeout(this.toastTimeoutId);
+    this.toastTimeoutId = null;
+  }
+
+  toastContainerClass(kind: ToastKind): string {
+    switch (kind) {
+      case 'success':
+        return 'border-emerald-200 bg-emerald-50 text-emerald-900';
+      case 'error':
+        return 'border-red-200 bg-red-50 text-red-900';
+      case 'warning':
+        return 'border-amber-200 bg-amber-50 text-amber-950';
+      default:
+        return 'border-blue-200 bg-blue-50 text-blue-900';
+    }
+  }
+
+  toastIconContainerClass(kind: ToastKind): string {
+    switch (kind) {
+      case 'success':
+        return 'border-emerald-200';
+      case 'error':
+        return 'border-red-200';
+      case 'warning':
+        return 'border-amber-200';
+      default:
+        return 'border-blue-200';
+    }
+  }
+
+  toastIconClass(kind: ToastKind): string {
+    switch (kind) {
+      case 'success':
+        return 'pi pi-check';
+      case 'error':
+        return 'pi pi-exclamation-triangle';
+      case 'warning':
+        return 'pi pi-exclamation-circle';
+      default:
+        return 'pi pi-info-circle';
+    }
   }
 
   private async refreshOrderAfterGenericImport(

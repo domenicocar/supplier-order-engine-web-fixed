@@ -5,6 +5,7 @@ import {
   CloseOrderResponse,
   CreateOrderResponse,
   DeleteOrderResponse,
+  RemoveOrderSupplierResponse,
   ExportGeneratedFile,
   ExportOrderResponse,
   ExportedFile,
@@ -177,6 +178,15 @@ export class OrdersService {
       );
   }
 
+  removeOrderSupplier(
+    orderId: string,
+    supplierId: string
+  ): Observable<RemoveOrderSupplierResponse> {
+    return this.api.delete<RemoveOrderSupplierResponse>(
+      `/orders/${orderId}/suppliers/${encodeURIComponent(supplierId)}`
+    );
+  }
+
   syncOrderItems(
     orderId: string,
     items: Array<{ ean: string; quantity: number; supplierId?: string }>
@@ -244,6 +254,7 @@ export class OrdersService {
             fileName:
               this.pickString(source, ['originalFileName', 'fileName', 'filename']) ?? file.name,
             uploadedAt: new Date().toISOString(),
+            columnMapping: preview?.savedMapping ?? null,
             extension: this.pickString(source, ['extension']) ?? null,
             storedPath: this.pickString(source, ['storedPath', 'stored_path']) ?? null,
             message:
@@ -1051,8 +1062,14 @@ export class OrdersService {
     }
 
     return {
+      columnMapping: this.normalizeSupplierColumnMapping(
+        this.pickValue(value, ['columnMapping', 'column_mapping', 'mapping'])
+      ),
       extension: this.pickString(value, ['extension']) ?? null,
       originalFileName,
+      preview: this.normalizeSupplierUploadPreview(
+        this.pickValue(value, ['preview', 'mappingPreview', 'mapping_preview'])
+      ),
       storedPath: this.pickString(value, ['storedPath', 'stored_path']) ?? null,
       uploadedAt:
         this.pickString(value, ['uploadedAt', 'uploaded_at', 'createdAt', 'created_at']) ?? null
@@ -1072,10 +1089,11 @@ export class OrdersService {
           supplierId: supplier.id,
           fileName: supplier.latestUpload.originalFileName,
           uploadedAt: supplier.latestUpload.uploadedAt,
+          columnMapping: supplier.latestUpload.columnMapping ?? null,
           extension: supplier.latestUpload.extension ?? null,
           storedPath: supplier.latestUpload.storedPath ?? null,
           message: 'Ultimo listino salvato',
-          preview: null,
+          preview: supplier.latestUpload.preview ?? null,
           files: [],
           products: []
         }

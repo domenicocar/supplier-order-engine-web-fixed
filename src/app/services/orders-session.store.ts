@@ -28,6 +28,35 @@ export class OrdersSessionStore {
     this.ordersState.update((orders) => orders.filter((order) => order.id !== orderId));
   }
 
+  removeSupplier(orderId: string, supplierId: string): void {
+    this.ordersState.update((orders) =>
+      orders.map((order) => {
+        if (order.id !== orderId) {
+          return order;
+        }
+
+        const supplierUploads = { ...order.supplierUploads };
+        delete supplierUploads[supplierId];
+
+        return {
+          ...order,
+          items: order.items.map((item) => {
+            if (item.supplierId !== supplierId) {
+              return { ...item };
+            }
+
+            const { supplierId: _removedSupplierId, ...itemWithoutSupplier } = item;
+            return itemWithoutSupplier;
+          }),
+          suppliers: order.suppliers?.filter((supplier) => supplier.id !== supplierId),
+          suppliersCount: Math.max(0, (order.suppliersCount ?? order.suppliers?.length ?? 1) - 1),
+          supplierComparisonRows: [],
+          supplierUploads
+        };
+      })
+    );
+  }
+
   upsertOrder(order: SessionOrder): void {
     this.ordersState.update((orders) => {
       const index = orders.findIndex((current) => current.id === order.id);
