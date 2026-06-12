@@ -19,6 +19,7 @@ import { DialogModule } from 'primeng/dialog';
 import { TabsModule } from 'primeng/tabs';
 
 import {
+  GlobalCatalogProduct,
   ImportOrderFileResponse,
   OrderFilePreviewResult,
   OrderImportColumnMapping,
@@ -245,8 +246,12 @@ interface ToastNotification {
           >
             <p-tablist>
               <p-tab value="import">Import</p-tab>
-              <p-tab value="comparison" [disabled]="orderLoading()">Confronto fornitori</p-tab>
-              <p-tab value="export" [disabled]="orderLoading()">Riepilogo e Export</p-tab>
+              <p-tab value="comparison" [disabled]="supplierTabsDisabled()">
+                Confronto fornitori
+              </p-tab>
+              <p-tab value="export" [disabled]="supplierTabsDisabled()">
+                Riepilogo e Export
+              </p-tab>
             </p-tablist>
 
             <p-tabpanels>
@@ -270,6 +275,11 @@ interface ToastNotification {
                     [supplierRemovingId]="supplierRemovingId()"
                     [supplierComparisonLoading]="supplierComparisonLoading()"
                     [hasSupplierUploads]="hasSupplierUploads()"
+                    [globalCatalogProducts]="globalCatalogProducts()"
+                    [globalCatalogLoading]="globalCatalogLoading()"
+                    [globalCatalogSaving]="globalCatalogSaving()"
+                    [globalCatalogSearched]="globalCatalogSearched()"
+                    [globalCatalogError]="globalCatalogError()"
                     (orderFileSelected)="onOrderFileSelected($event)"
                     (orderImportConfirmed)="onOrderImportConfirmed($event)"
                     (supplierDraftFileSelected)="onSupplierDraftFileSelected($event)"
@@ -279,6 +289,8 @@ interface ToastNotification {
                     (supplierMappingPreviewRequested)="onSupplierMappingPreviewRequested($event)"
                     (supplierMappingConfirmed)="onSupplierMappingConfirmed($event)"
                     (supplierComparisonRequested)="loadSupplierComparison()"
+                    (globalCatalogSearchRequested)="onGlobalCatalogSearchRequested($event)"
+                    (globalCatalogProductsAdded)="onGlobalCatalogProductsAdded($event)"
                   />
                 </div>
               </p-tabpanel>
@@ -644,6 +656,7 @@ export class OrderDetailPageComponent {
   });
   private draftSyncTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private catalogSearchTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private globalCatalogSearchTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private toastTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private catalogSearchRequestSequence = 0;
   private readonly route = inject(ActivatedRoute);
@@ -684,6 +697,11 @@ export class OrderDetailPageComponent {
   readonly supplierCreating = signal(false);
   readonly supplierPreferenceUpdatingId = signal<string | null>(null);
   readonly supplierRemovingId = signal<string | null>(null);
+  readonly globalCatalogProducts = signal<GlobalCatalogProduct[]>([]);
+  readonly globalCatalogLoading = signal(false);
+  readonly globalCatalogSaving = signal(false);
+  readonly globalCatalogSearched = signal(false);
+  readonly globalCatalogError = signal<string | null>(null);
   readonly supplierRemovalTarget = signal<SupplierDefinition | null>(null);
   readonly fetchedOrderIds = signal<Record<string, boolean>>({});
   readonly autoComparisonAttemptedOrderIds = signal<Record<string, boolean>>({});
@@ -742,6 +760,9 @@ export class OrderDetailPageComponent {
   readonly hasSupplierUploads = computed(() =>
     Object.values(this.order()?.supplierUploads ?? {}).some((uploads) => uploads.length > 0)
   );
+  readonly supplierTabsDisabled = computed(
+    () => this.orderLoading() || !this.hasSupplierUploads()
+  );
   readonly supplierComparisonRows = computed(() => this.buildSupplierComparisonTableRows());
   readonly orderExportSummaryRows = computed(() => this.buildOrderExportSummaryRows());
   readonly missingOrderSummaryRows = computed(() =>
@@ -759,6 +780,7 @@ export class OrderDetailPageComponent {
     this.destroyRef.onDestroy(() => {
       this.clearDraftSyncTimeout();
       this.clearCatalogSearchTimeout();
+      this.clearGlobalCatalogSearchTimeout();
       this.clearToastTimeout();
     });
 
@@ -826,6 +848,118 @@ export class OrderDetailPageComponent {
     }
 
     void this.previewOrderImportFile(file);
+  }
+
+  onGlobalCatalogSearchRequested(query: string): void {
+    const normalizedQuery = query.trim();
+    this.clearGlobalCatalogSearchTimeout();
+
+    if (normalizedQuery.length < 2) {
+      this.globalCatalogProducts.set([]);
+      this.globalCatalogSearched.set(false);
+      this.globalCatalogError.set(null);
+      return;
+    }
+
+    this.globalCatalogSearchTimeoutId = setTimeout(() => {
+      this.globalCatalogSearchTimeoutId = null;
+      void this.searchGlobalCatalog(normalizedQuery);
+    }, 300);
+  }
+
+  async onGlobalCatalogProductsAdded(
+    products: Array<GlobalCatalogProduct & { quantity: number }>
+  ): Promise<void> {
+    if (this.isReadOnlyOrder() || products.length === 0) {
+      return;
+    }
+
+    const orderId = this.orderId();
+    const currentOrder = this.order();
+
+    if (!orderId || !currentOrder) {
+      return;
+    }
+
+    const itemsByEan = new Map(
+      currentOrder.items.map((item) => [item.ean, { ...item }] as const)
+    );
+
+    for (const product of products) {
+      if (product.quantity <= 0) {
+        itemsByEan.delete(product.ean);
+        continue;
+      }
+
+      const existingItem = itemsByEan.get(product.ean);
+
+      if (existingItem) {
+        itemsByEan.set(product.ean, {
+          ...existingItem,
+          description: existingItem.description || product.description,
+          quantity: product.quantity
+        });
+      } else {
+        itemsByEan.set(product.ean, {
+          ean: product.ean,
+          description: product.description,
+          quantity: product.quantity,
+          status: 'PENDING'
+        });
+      }
+    }
+
+    const nextItems = [...itemsByEan.values()];
+    this.globalCatalogSaving.set(true);
+    this.globalCatalogError.set(null);
+
+    try {
+      await firstValueFrom(
+        this.ordersService.syncOrderItems(
+          orderId,
+          nextItems.map((item) => ({
+            ean: item.ean,
+            quantity: item.quantity ?? 0,
+            ...(item.description ? { description: item.description } : {}),
+            ...(item.supplierId ? { supplierId: item.supplierId } : {})
+          }))
+        )
+      );
+      const response = await firstValueFrom(this.ordersService.getOrderById(orderId));
+      this.ordersStore.upsertOrder(response.order);
+      this.showToast(
+        'success',
+        'Riordino aggiornato',
+        products.length === 1
+          ? 'Quantità salvata.'
+          : `${products.length} quantità salvate.`
+      );
+    } catch (error: unknown) {
+      const message = this.toMessage(error, 'Salvataggio quantità non riuscito.');
+      this.globalCatalogError.set(message);
+      this.showToast('error', 'Operazione non riuscita', message);
+    } finally {
+      this.globalCatalogSaving.set(false);
+    }
+  }
+
+  private async searchGlobalCatalog(query: string): Promise<void> {
+    this.globalCatalogLoading.set(true);
+    this.globalCatalogSearched.set(true);
+    this.globalCatalogError.set(null);
+
+    try {
+      this.globalCatalogProducts.set(
+        await firstValueFrom(this.ordersService.searchGlobalCatalog(query))
+      );
+    } catch (error: unknown) {
+      this.globalCatalogProducts.set([]);
+      this.globalCatalogError.set(
+        this.toMessage(error, 'Ricerca nel catalogo prodotti non riuscita.')
+      );
+    } finally {
+      this.globalCatalogLoading.set(false);
+    }
   }
 
   private parseDate(value: string | null | undefined): Date | null {
@@ -1294,7 +1428,7 @@ export class OrderDetailPageComponent {
   }
 
   onActiveTabChange(value: string | number): void {
-    if (this.orderLoading() && value !== 'import') {
+    if (this.supplierTabsDisabled() && value !== 'import') {
       return;
     }
 
@@ -1437,25 +1571,29 @@ export class OrderDetailPageComponent {
         refreshWarning = ' Il dettaglio verra riallineato al prossimo caricamento.';
       }
 
-      this.activeTab.set('comparison');
-      this.supplierComparisonRequested.set(true);
-      this.supplierComparisonLoading.set(true);
-      this.supplierComparisonError.set(null);
-
       let comparisonWarning = '';
 
-      try {
-        const comparisonLoaded = await this.refreshSupplierComparison(
-          orderId,
-          'Fornitore rimosso, ma non sono riuscito ad aggiornare il confronto.'
-        );
+      if (this.hasSupplierUploads()) {
+        this.activeTab.set('comparison');
+        this.supplierComparisonRequested.set(true);
+        this.supplierComparisonLoading.set(true);
+        this.supplierComparisonError.set(null);
 
-        if (!comparisonLoaded) {
-          comparisonWarning =
-            ' Non sono riuscito ad aggiornare il confronto fornitori.';
+        try {
+          const comparisonLoaded = await this.refreshSupplierComparison(
+            orderId,
+            'Fornitore rimosso, ma non sono riuscito ad aggiornare il confronto.'
+          );
+
+          if (!comparisonLoaded) {
+            comparisonWarning =
+              ' Non sono riuscito ad aggiornare il confronto fornitori.';
+          }
+        } finally {
+          this.supplierComparisonLoading.set(false);
         }
-      } finally {
-        this.supplierComparisonLoading.set(false);
+      } else {
+        this.activeTab.set('import');
       }
 
       const affectedMessage =
@@ -2627,13 +2765,24 @@ export class OrderDetailPageComponent {
   }>): Array<{
     ean: string;
     quantity: number;
+    description?: string;
     supplierId?: string;
   }> {
-    return items.map(({ ean, quantity, supplierId }) => ({
+    return items.map(({ ean, quantity, description, supplierId }) => ({
       ean,
       quantity,
+      ...(description ? { description } : {}),
       ...(supplierId ? { supplierId } : {})
     }));
+  }
+
+  private clearGlobalCatalogSearchTimeout(): void {
+    if (this.globalCatalogSearchTimeoutId === null) {
+      return;
+    }
+
+    clearTimeout(this.globalCatalogSearchTimeoutId);
+    this.globalCatalogSearchTimeoutId = null;
   }
 
   private buildLocalDraftItems(

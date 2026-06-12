@@ -3,7 +3,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
+  inject,
   input,
   output,
   signal,
@@ -13,7 +15,9 @@ import { DialogModule } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
 
 import {
+  GlobalCatalogProduct,
   OrderImportColumnMapping,
+  OrderItem,
   SessionOrder,
   SupplierColumnMapping,
   WorksheetColumnOption,
@@ -25,6 +29,7 @@ import {
   UploadCardState,
   UploadCardStatus,
 } from './order-detail-view.models';
+import { GlobalCatalogOrderBuilderComponent } from './global-catalog-order-builder.component';
 
 type SupplierMappingField =
   | 'eanColumnIndex'
@@ -43,7 +48,7 @@ type DraftSupplierCard = {
 @Component({
   selector: 'app-order-import-tab',
   standalone: true,
-  imports: [DatePipe, DialogModule, FormsModule, TableModule],
+  imports: [DatePipe, DialogModule, FormsModule, GlobalCatalogOrderBuilderComponent, TableModule],
   template: `
     <div class="flex flex-col gap-6">
       <section class="surface-panel p-6 md:p-7">
@@ -67,6 +72,51 @@ type DraftSupplierCard = {
           </button>
         </div>
 
+        <div class="mb-6 grid gap-3 md:grid-cols-2">
+          <button
+            type="button"
+            class="rounded-2xl border p-4 text-left transition"
+            [class]="restockMode() === 'catalog'
+              ? 'border-[var(--brand-primary)] bg-[var(--brand-primary-soft)]'
+              : 'border-[var(--app-border)] bg-white hover:border-[var(--brand-primary)]'"
+            (click)="restockMode.set('catalog')"
+          >
+            <span class="block text-sm font-semibold text-[var(--app-text)]">
+              Crea riordino manuale
+            </span>
+            <span class="mt-1 block text-xs text-[var(--app-text-muted)]">
+              Cerca nel catalogo prodotti della piattaforma e imposta le quantità.
+            </span>
+          </button>
+          <button
+            type="button"
+            class="rounded-2xl border p-4 text-left transition"
+            [class]="restockMode() === 'import'
+              ? 'border-[var(--brand-primary)] bg-[var(--brand-primary-soft)]'
+              : 'border-[var(--app-border)] bg-white hover:border-[var(--brand-primary)]'"
+            (click)="restockMode.set('import')"
+          >
+            <span class="block text-sm font-semibold text-[var(--app-text)]">
+              Importa riordino da PDF/Excel
+            </span>
+            <span class="mt-1 block text-xs text-[var(--app-text-muted)]">
+              Carica un file esistente e conferma le colonne da importare.
+            </span>
+          </button>
+        </div>
+
+        @if (restockMode() === 'catalog') {
+          <app-global-catalog-order-builder
+            [products]="globalCatalogProducts()"
+            [existingItems]="order().items"
+            [loading]="globalCatalogLoading()"
+            [saving]="globalCatalogSaving()"
+            [searched]="globalCatalogSearched()"
+            [error]="globalCatalogError()"
+            (searchRequested)="globalCatalogSearchRequested.emit($event)"
+            (productsAdded)="globalCatalogProductsAdded.emit($event)"
+          />
+        } @else {
         <div class="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
           <div class="flex items-start gap-3">
             <div
@@ -144,55 +194,6 @@ type DraftSupplierCard = {
             {{ orderFileCardState().message }}
           </p>
         </div>
-
-        <p-dialog
-          [visible]="orderProductsDialogVisible"
-          (visibleChange)="orderProductsDialogVisible = $event"
-          [modal]="true"
-          [draggable]="false"
-          [resizable]="false"
-          [dismissableMask]="true"
-          [style]="{ width: 'min(960px, 96vw)' }"
-          header="Prodotti riassortimento"
-        >
-          <div class="flex flex-col gap-4">
-            <p class="text-sm leading-6 text-slate-500">
-              Elenco dei prodotti attualmente presenti nel riassortimento.
-            </p>
-
-            <div class="overflow-hidden rounded-2xl border border-slate-200">
-              <p-table
-                [value]="order().items"
-                [paginator]="order().items.length > orderItemsPageSize"
-                [rows]="orderItemsPageSize"
-                [rowsPerPageOptions]="[10, 25, 50]"
-                responsiveLayout="scroll"
-              >
-                <ng-template pTemplate="header">
-                  <tr>
-                    <th>EAN</th>
-                    <th>Descrizione</th>
-                    <th>Quantita</th>
-                  </tr>
-                </ng-template>
-                <ng-template pTemplate="body" let-item>
-                  <tr>
-                    <td>{{ item.ean }}</td>
-                    <td>{{ item.description || '-' }}</td>
-                    <td>{{ item.quantity ?? '-' }}</td>
-                  </tr>
-                </ng-template>
-                <ng-template pTemplate="emptymessage">
-                  <tr>
-                    <td colspan="3" class="px-4 py-5 text-sm text-slate-500">
-                      Nessun prodotto presente. Importa un file riassortimento per popolare la tabella.
-                    </td>
-                  </tr>
-                </ng-template>
-              </p-table>
-            </div>
-          </div>
-        </p-dialog>
 
         @if (orderImportPreviewState(); as importState) {
           @if (importState.preview; as preview) {
@@ -344,6 +345,79 @@ type DraftSupplierCard = {
             </div>
           }
         }
+        }
+
+        <p-dialog
+          [visible]="orderProductsDialogVisible"
+          (visibleChange)="orderProductsDialogVisible = $event"
+          [modal]="true"
+          [draggable]="false"
+          [resizable]="false"
+          [dismissableMask]="true"
+          [style]="{ width: 'min(960px, 96vw)' }"
+          header="Prodotti riassortimento"
+        >
+          <div class="flex flex-col gap-4">
+            <p class="text-sm leading-6 text-slate-500">
+              Elenco dei prodotti attualmente presenti nel riassortimento.
+            </p>
+
+            <div class="overflow-hidden rounded-2xl border border-slate-200">
+              <p-table
+                [value]="order().items"
+                [paginator]="order().items.length > orderItemsPageSize"
+                [rows]="orderItemsPageSize"
+                [rowsPerPageOptions]="[10, 25, 50]"
+                responsiveLayout="scroll"
+              >
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th>EAN</th>
+                    <th>Descrizione</th>
+                    <th>Quantita</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-item>
+                  @if (globalCatalogSaving()) {
+                    <tr aria-label="Salvataggio riassortimento in corso">
+                      <td>
+                        <div class="h-4 w-32 animate-pulse rounded bg-slate-200"></div>
+                      </td>
+                      <td>
+                        <div class="h-4 w-3/4 animate-pulse rounded bg-slate-200"></div>
+                      </td>
+                      <td>
+                        <div class="h-11 w-14 animate-pulse rounded-xl bg-slate-200"></div>
+                      </td>
+                    </tr>
+                  } @else {
+                    <tr>
+                      <td>{{ item.ean }}</td>
+                      <td>{{ item.description || '-' }}</td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          class="app-input h-11 w-14 rounded-xl p-0 text-center"
+                          [ngModel]="item.quantity ?? 0"
+                          (ngModelChange)="onDialogQuantityChange(item, $event)"
+                        />
+                      </td>
+                    </tr>
+                  }
+                </ng-template>
+                <ng-template pTemplate="emptymessage">
+                  <tr>
+                    <td colspan="3" class="px-4 py-5 text-sm text-slate-500">
+                      Nessun prodotto presente nel riassortimento.
+                    </td>
+                  </tr>
+                </ng-template>
+              </p-table>
+            </div>
+          </div>
+        </p-dialog>
 
         <!-- @if (order().importResult; as importResult) {
           <div class="mt-8 grid gap-6 xl:grid-cols-2">
@@ -935,6 +1009,11 @@ export class OrderImportTabComponent {
   readonly supplierRemovingId = input<string | null>(null);
   readonly supplierComparisonLoading = input(false);
   readonly hasSupplierUploads = input(false);
+  readonly globalCatalogProducts = input<GlobalCatalogProduct[]>([]);
+  readonly globalCatalogLoading = input(false);
+  readonly globalCatalogSaving = input(false);
+  readonly globalCatalogSearched = input(false);
+  readonly globalCatalogError = input<string | null>(null);
 
   readonly orderFileSelected = output<File>();
   readonly orderImportConfirmed = output<{
@@ -961,6 +1040,9 @@ export class OrderImportTabComponent {
     mapping: SupplierColumnMapping | null;
   }>();
   readonly supplierComparisonRequested = output<void>();
+  readonly globalCatalogSearchRequested = output<string>();
+  readonly globalCatalogProductsAdded =
+    output<Array<GlobalCatalogProduct & { quantity: number }>>();
 
   readonly orderFileInputId = 'order-import-upload-input';
 
@@ -969,8 +1051,15 @@ export class OrderImportTabComponent {
     Record<string, SupplierColumnMapping | null>
   >({});
   readonly draftSuppliers = signal<DraftSupplierCard[]>([]);
+  readonly restockMode = signal<'catalog' | 'import'>('catalog');
 
   readonly orderItemsPageSize = 10;
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly pendingDialogItems = new Map<
+    string,
+    GlobalCatalogProduct & { quantity: number }
+  >();
+  private dialogSaveTimeoutId: ReturnType<typeof setTimeout> | null = null;
   orderProductsDialogVisible = false;
   readonly draftItemsCount = computed(() => this.order().items.length);
 
@@ -1026,6 +1115,12 @@ export class OrderImportTabComponent {
   });
 
   constructor() {
+    this.destroyRef.onDestroy(() => {
+      if (this.dialogSaveTimeoutId !== null) {
+        clearTimeout(this.dialogSaveTimeoutId);
+      }
+    });
+
     effect(
       () => {
         const previewState = this.orderImportPreviewState();
@@ -1095,6 +1190,30 @@ export class OrderImportTabComponent {
       },
       { allowSignalWrites: true },
     );
+  }
+
+  onDialogQuantityChange(item: OrderItem, rawValue: number | string): void {
+    const numericValue = Number(rawValue);
+    const quantity = Number.isFinite(numericValue)
+      ? Math.max(0, Math.round(numericValue))
+      : 0;
+
+    this.pendingDialogItems.set(item.ean, {
+      ean: item.ean,
+      description: item.description ?? '',
+      quantity,
+    });
+
+    if (this.dialogSaveTimeoutId !== null) {
+      clearTimeout(this.dialogSaveTimeoutId);
+    }
+
+    this.dialogSaveTimeoutId = setTimeout(() => {
+      this.dialogSaveTimeoutId = null;
+      const itemsToSave = [...this.pendingDialogItems.values()];
+      this.pendingDialogItems.clear();
+      this.globalCatalogProductsAdded.emit(itemsToSave);
+    }, 400);
   }
 
   onOrderFileChange(event: Event): void {

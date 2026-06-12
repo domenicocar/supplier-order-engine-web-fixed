@@ -63,6 +63,11 @@ export interface OrderItem {
   mappedEan?: string;
 }
 
+export interface GlobalCatalogProduct {
+  ean: string;
+  description: string;
+}
+
 export interface ReviewItem {
   ean: string;
   description?: string;

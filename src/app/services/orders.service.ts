@@ -10,6 +10,7 @@ import {
   ExportOrderResponse,
   ExportedFile,
   GetOrderResponse,
+  GlobalCatalogProduct,
   ImportOrderFileResponse,
   OrderClosure,
   OrderClosureLine,
@@ -189,7 +190,7 @@ export class OrdersService {
 
   syncOrderItems(
     orderId: string,
-    items: Array<{ ean: string; quantity: number; supplierId?: string }>
+    items: Array<{ ean: string; quantity: number; description?: string; supplierId?: string }>
   ): Observable<{ orderId?: string; status?: string; itemsCount?: number | null }> {
     return this.api
       .post<unknown>(`/orders/${orderId}/items`, { items })
@@ -269,6 +270,23 @@ export class OrdersService {
               this.pickValue(source, ['products', 'items', 'rows', 'importedProducts', 'imported_products'])
             )
           };
+        })
+      );
+  }
+
+  searchGlobalCatalog(query: string): Observable<GlobalCatalogProduct[]> {
+    return this.api
+      .get<unknown>('/catalog/global', { params: { q: query, limit: 50 } })
+      .pipe(
+        map((payload) => {
+          const source = this.unwrap(payload);
+          return this.asArray(this.pickValue(source, ['items'])).flatMap((entry) => {
+            const item = this.unwrap(entry);
+            const ean = this.pickString(item, ['ean']);
+            const description = this.pickString(item, ['description']);
+
+            return ean && description ? [{ ean, description }] : [];
+          });
         })
       );
   }
