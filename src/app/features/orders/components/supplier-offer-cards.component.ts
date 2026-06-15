@@ -105,9 +105,10 @@ const supplierColors = new Map<string, (typeof SUPPLIER_COLORS)[number]>();
     `
       .supplier-offers {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(7.75rem, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.55rem;
-        min-width: 34rem;
+        min-width: 0;
+        max-width: 100%;
       }
 
       .supplier-offer-card {
@@ -216,6 +217,13 @@ const supplierColors = new Map<string, (typeof SUPPLIER_COLORS)[number]>();
         color: #4456b8;
         font-size: 0.72rem;
         font-weight: 750;
+      }
+
+      @media (min-width: 768px) {
+        .supplier-offers {
+          grid-template-columns: repeat(auto-fit, minmax(7.75rem, 1fr));
+          min-width: 34rem;
+        }
       }
 
     `

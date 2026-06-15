@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  ViewChild,
+  computed,
+  input,
+  output,
+  signal
+} from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 
@@ -37,7 +46,9 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
         </div>
       </div>
 
-      <div class="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div
+        class="sticky top-0 z-30 -mx-6 mt-6 flex flex-col gap-3 border-y border-[var(--app-border)] bg-white/95 px-6 py-3 shadow-[0_10px_24px_rgba(37,99,235,0.08)] backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0 md:shadow-none lg:flex-row lg:items-center lg:justify-between"
+      >
         <input
           type="search"
           placeholder="Cerca per EAN, descrizione o fornitore..."
@@ -94,7 +105,127 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
           {{ emptyStateMessage() }}
         </p>
       } @else {
-        <div class="mt-6 overflow-hidden rounded-2xl border border-[var(--app-border)]">
+        <div
+          #mobileCardsStart
+          class="mt-6 grid scroll-mt-40 gap-4 md:hidden"
+        >
+          @if (loading()) {
+            @for (placeholder of mobileSkeletonRows; track placeholder) {
+              <article class="animate-pulse rounded-3xl border border-[var(--app-border)] bg-white p-5">
+                <div class="h-3 w-28 rounded-full bg-slate-200"></div>
+                <div class="mt-3 h-5 w-4/5 rounded-full bg-slate-200"></div>
+                <div class="mt-6 h-11 w-36 rounded-xl bg-slate-100"></div>
+                <div class="mt-6 grid grid-cols-2 gap-2">
+                  <div class="h-28 rounded-2xl bg-slate-200"></div>
+                  <div class="h-28 rounded-2xl bg-slate-200"></div>
+                </div>
+              </article>
+            }
+          } @else {
+            @for (row of paginatedRows(); track row.lineId) {
+              <article class="min-w-0 rounded-3xl border border-[var(--app-border)] bg-white p-5 shadow-sm">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <p class="break-all text-xs font-medium text-[var(--app-text-muted)]">
+                      {{ row.ean }}
+                    </p>
+                    @if (row.lineType === 'catalog') {
+                      <span class="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[var(--app-text-muted)]">
+                        Catalogo
+                      </span>
+                    }
+                  </div>
+                  <h3 class="mt-2 break-words text-base font-semibold leading-snug text-[var(--app-text)]">
+                    {{ row.description }}
+                  </h3>
+                </div>
+
+                <div class="mt-5">
+                  <p class="text-xs font-semibold text-[var(--app-text-muted)]">Quantità</p>
+                  <div class="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--app-border)] bg-white text-xl font-medium text-[var(--app-text)]"
+                      aria-label="Diminuisci quantità"
+                      [disabled]="(row.quantity ?? 0) <= 0"
+                      (click)="changeQuantityBy(row, -1)"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="0"
+                      class="app-input h-11 w-16 rounded-xl px-2 text-center font-semibold"
+                      data-comparison-field="quantity"
+                      [attr.data-comparison-line-id]="row.lineId"
+                      [value]="row.quantity ?? ''"
+                      (input)="onQuantityChange(row.lineId, $event)"
+                    />
+                    <button
+                      type="button"
+                      class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--app-border)] bg-white text-xl font-medium text-[var(--app-text)]"
+                      aria-label="Aumenta quantità"
+                      (click)="changeQuantityBy(row, 1)"
+                    >
+                      +
+                    </button>
+                    @if (canSplitRow(row)) {
+                      <button
+                        type="button"
+                        class="comparison-availability__split-button ml-1"
+                        aria-label="Fraziona riga"
+                        title="Fraziona riga"
+                        (click)="splitRequested.emit({ lineId: row.lineId })"
+                      >
+                        <svg
+                          viewBox="0 0 311.495 311.495"
+                          aria-hidden="true"
+                          class="comparison-availability__split-icon"
+                        >
+                          <path
+                            d="M303.748,0H187.251c-4.142,0-7.5,3.358-7.5,7.5v20c0,4.142,3.358,7.5,7.5,7.5h64.246l-82.301,82.302
+                            c-1.407,1.406-2.197,3.314-2.197,5.303v181.39c0,4.142,3.358,7.5,7.5,7.5h20c4.142,0,7.5-3.358,7.5-7.5V133.996l74.248-74.248
+                            v64.246c0,4.142,3.358,7.5,7.5,7.5h20c4.142,0,7.5-3.358,7.5-7.5V7.5C311.248,3.358,307.889,0,303.748,0z"
+                            fill="currentColor"
+                          />
+                          <path
+                            d="M59.998,35h64.246c4.142,0,7.5-3.358,7.5-7.5v-20c0-4.142-3.358-7.5-7.5-7.5H7.748
+                            c-4.142,0-7.5,3.358-7.5,7.5v116.494c0,4.142,3.358,7.5,7.5,7.5h20c4.142,0,7.5-3.358,7.5-7.5V59.748l74.248,74.248v169.999
+                            c0,4.142,3.358,7.5,7.5,7.5h20c4.142,0,7.5-3.358,7.5-7.5v-181.39c0-1.989-0.79-3.897-2.197-5.303L59.998,35z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                <div class="mt-5 min-w-0">
+                  <p class="mb-2 text-xs font-semibold text-[var(--app-text-muted)]">
+                    Fornitori disponibili
+                  </p>
+                  <app-supplier-offer-cards
+                    [offers]="row.availableSuppliers"
+                    [quantity]="row.quantity"
+                    [selectedSupplierId]="row.selectedSupplierId"
+                    (selectionChanged)="onSupplierCardSelection(row.lineId, $event)"
+                  />
+                </div>
+
+                <div class="mt-4 flex items-center justify-between gap-3 border-t border-[var(--app-border)] pt-4">
+                  <span class="text-xs text-[var(--app-text-muted)]">Totale dovuto</span>
+                  <span class="font-semibold text-[var(--app-text)]">
+                    {{ formatSupplierTotalDue(row) }}
+                  </span>
+                </div>
+              </article>
+            }
+          }
+        </div>
+
+        <div class="mt-6 hidden overflow-hidden rounded-2xl border border-[var(--app-border)] md:block">
           <p-table
             [value]="loading() ? skeletonTableRows : paginatedRows()"
             dataKey="lineId"
@@ -359,6 +490,9 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SupplierComparisonTabComponent {
+  @ViewChild('mobileCardsStart')
+  private mobileCardsStart?: ElementRef<HTMLElement>;
+
   readonly rows = input<SupplierComparisonTableRow[]>([]);
   readonly loading = input(false);
   readonly requested = input(false);
@@ -439,6 +573,7 @@ export class SupplierComparisonTabComponent {
 
   readonly formatPrice = formatPrice;
   readonly skeletonSupplierCards = [1, 2, 3, 4];
+  readonly mobileSkeletonRows = [1, 2, 3];
   readonly trackByEan = (_index: number, row: SupplierComparisonTableRow) => row.lineId;
   private readonly euroFormatter = new Intl.NumberFormat('it-IT', {
     style: 'currency',
@@ -500,11 +635,31 @@ export class SupplierComparisonTabComponent {
     this.quantityChanged.emit({ lineId, quantity });
   }
 
+  changeQuantityBy(row: SupplierComparisonTableRow, delta: number): void {
+    const quantity = Math.max(0, (row.quantity ?? 0) + delta);
+    this.quantityChanged.emit({ lineId: row.lineId, quantity });
+  }
+
   goToPreviousPage(): void {
     this.currentPage.update((page) => Math.max(1, page - 1));
+    this.scrollToFirstMobileCard();
   }
 
   goToNextPage(): void {
     this.currentPage.update((page) => Math.min(this.totalPages(), page + 1));
+    this.scrollToFirstMobileCard();
+  }
+
+  private scrollToFirstMobileCard(): void {
+    if (typeof window === 'undefined' || !window.matchMedia('(max-width: 767px)').matches) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      this.mobileCardsStart?.nativeElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    });
   }
 }

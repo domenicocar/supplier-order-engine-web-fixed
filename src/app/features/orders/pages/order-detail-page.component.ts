@@ -337,6 +337,32 @@ interface ToastNotification {
             </p-tabpanels>
           </p-tabs>
 
+          @if (activeTab() === 'export' && !isReadOnlyOrder()) {
+            <div
+              class="fixed inset-x-0 bottom-0 z-50 grid grid-cols-2 gap-3 bg-[linear-gradient(180deg,rgba(244,245,255,0),rgba(244,245,255,0.98)_35%)] px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 md:hidden"
+            >
+              <button
+                pButton
+                type="button"
+                class="justify-center !rounded-2xl !bg-[var(--brand-primary)] !px-3 !py-3.5 !text-sm !font-semibold !text-white shadow-[0_14px_35px_rgba(37,99,235,0.24)]"
+                [disabled]="exporting() || closing()"
+                (click)="generateExport()"
+              >
+                {{ exporting() ? 'Export...' : 'Esporta ordine' }}
+              </button>
+
+              <button
+                pButton
+                type="button"
+                class="justify-center !rounded-2xl !bg-emerald-600 !px-3 !py-3.5 !text-sm !font-semibold !text-white shadow-[0_14px_35px_rgba(5,150,105,0.2)]"
+                [disabled]="exporting() || closing()"
+                (click)="closeOrder()"
+              >
+                {{ closing() ? 'Chiusura...' : 'Chiudi ordine' }}
+              </button>
+            </div>
+          }
+
           <p-dialog
             [visible]="!!supplierRemovalTarget()"
             (visibleChange)="onSupplierRemovalDialogVisibilityChange($event)"

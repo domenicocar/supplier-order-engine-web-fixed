@@ -16,8 +16,32 @@ import { OrdersService } from '../../../services/orders.service';
   standalone: true,
   imports: [ButtonModule, RouterLink, DialogModule, PaymentRequiredDialogComponent],
   template: `
-    <section class="flex flex-col gap-8">
-      <section class="grid gap-4 xl:grid-cols-[1.45fr_1fr_1fr]">
+    <section class="flex flex-col gap-8 pb-24 md:pb-0">
+      <section class="surface-panel rounded-[30px] p-6 md:hidden">
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-secondary)]">
+          Riepilogo ordini
+        </p>
+        <div class="mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-5">
+          <div class="min-w-0">
+            <p class="font-heading text-3xl font-semibold tracking-tight text-[var(--brand-primary)]">
+              {{ totalEstimatedLabel() }}
+            </p>
+            <p class="mt-1 text-xs text-[var(--app-text-muted)]">
+              Totale stimato
+            </p>
+          </div>
+          <div class="border-l border-[var(--app-border)] pl-5 text-left">
+            <p class="font-heading text-3xl font-semibold tracking-tight text-[var(--app-text)]">
+              {{ ordersCount() }}
+            </p>
+            <p class="mt-1 text-xs text-[var(--app-text-muted)]">
+              {{ draftOrdersLabel() }}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="hidden gap-4 md:grid xl:grid-cols-[1.45fr_1fr_1fr]">
         <article class="surface-panel rounded-[30px] p-7">
           <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-secondary)]">
             Totale ordini
@@ -63,6 +87,20 @@ import { OrdersService } from '../../../services/orders.service';
         </article>
       </section>
 
+      <div
+        class="fixed inset-x-0 bottom-0 z-40 flex justify-center bg-[linear-gradient(180deg,rgba(244,245,255,0),rgba(244,245,255,0.96)_35%)] px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 md:hidden"
+      >
+        <button
+          pButton
+          type="button"
+          class="btn-primary w-full max-w-xs justify-center !rounded-2xl !px-6 !py-3.5 !text-sm !font-semibold shadow-[0_14px_35px_rgba(37,99,235,0.28)]"
+          (click)="createOrder()"
+          [disabled]="creating()"
+        >
+          {{ creating() ? 'Creazione in corso...' : 'Nuovo Ordine' }}
+        </button>
+      </div>
+
       @if (error()) {
         <div class="app-alert-error">
           {{ error() }}
@@ -91,7 +129,100 @@ import { OrdersService } from '../../../services/orders.service';
           </p>
         </section>
       } @else {
-        <section class="surface-panel overflow-hidden rounded-[30px] p-2 sm:p-3">
+        <section class="grid gap-4 md:hidden">
+          @for (order of orders(); track order.id) {
+            <article class="surface-panel overflow-hidden rounded-[26px] p-5">
+              <div>
+                <span
+                  class="mb-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                  [class.bg-[rgba(37,99,235,0.08)]]="!isClosedOrder(order)"
+                  [class.text-[var(--brand-primary)]]="!isClosedOrder(order)"
+                  [class.bg-[rgba(16,185,129,0.12)]]="isClosedOrder(order)"
+                  [class.text-[var(--app-success-text)]]="isClosedOrder(order)"
+                >
+                  {{ orderStatusLabel(order.status) }}
+                </span>
+                <div class="flex items-baseline justify-between gap-4">
+                  <p class="font-heading text-lg font-semibold leading-tight text-[var(--app-text)]">
+                    {{ orderDisplayLabel(order.createdAt) }}
+                  </p>
+                  <p class="shrink-0 font-heading text-lg font-semibold text-[var(--brand-primary)]">
+                    {{ estimatedTotalLabel(order) }}
+                  </p>
+                </div>
+                <p class="mt-1 text-xs leading-5 text-[var(--app-text-muted)]">
+                  {{ orderTotalsUpdatedLabel(order) }}
+                </p>
+              </div>
+
+              <div class="mt-5 grid grid-cols-2 gap-x-4 gap-y-5 border-y border-[rgba(148,163,184,0.14)] py-5">
+                <div>
+                  <p class="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--app-text-muted)]">
+                    Data
+                  </p>
+                  <p class="text-sm font-semibold text-[var(--app-text)]">
+                    {{ orderDateLabel(order.createdAt) }}
+                  </p>
+                  <p class="text-xs text-[var(--app-text-muted)]">
+                    {{ orderTimeLabel(order.createdAt) }}
+                  </p>
+                </div>
+
+                <div>
+                  <p class="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--app-text-muted)]">
+                    Prodotti
+                  </p>
+                  <p class="text-sm font-semibold text-[var(--app-text)]">
+                    {{ productsLabel(order) }}
+                  </p>
+                </div>
+
+                <div>
+                  <p class="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--app-text-muted)]">
+                    Fornitori
+                  </p>
+                  <p class="text-sm font-semibold text-[var(--app-text)]">
+                    {{ suppliersLabel(order) }}
+                  </p>
+                </div>
+
+                <div>
+                  <p class="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--app-text-muted)]">
+                    Mancanti
+                  </p>
+                  <span
+                    class="block whitespace-normal break-words text-xs font-semibold"
+                    [class.text-[var(--app-danger-text)]]="missingItemsCount(order) > 0"
+                    [class.text-[var(--brand-success)]]="missingItemsCount(order) === 0"
+                  >
+                    {{ missingItemsLabel(order) }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="mt-5 grid grid-cols-2 gap-3">
+                <a
+                  pButton
+                  [routerLink]="['/app/orders', order.id]"
+                  class="btn-primary justify-center !rounded-2xl !px-3 !py-2.5 !text-sm !font-semibold no-underline"
+                >
+                  Apri dettaglio
+                </a>
+                <button
+                  pButton
+                  type="button"
+                  class="justify-center !rounded-2xl !border !border-[var(--app-danger-border)] !bg-white !px-3 !py-2.5 !text-sm !font-semibold !text-[var(--app-danger-text)]"
+                  [disabled]="deletingOrderIds()[order.id]"
+                  (click)="openDeleteDialog(order)"
+                >
+                  {{ deletingOrderIds()[order.id] ? 'Eliminazione...' : 'Elimina' }}
+                </button>
+              </div>
+            </article>
+          }
+        </section>
+
+        <section class="surface-panel hidden overflow-hidden rounded-[30px] p-3 md:block">
           <div class="overflow-x-auto">
             <table class="min-w-full border-separate border-spacing-0">
               <thead>

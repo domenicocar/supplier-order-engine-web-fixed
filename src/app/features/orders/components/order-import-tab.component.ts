@@ -51,7 +51,7 @@ type DraftSupplierCard = {
   imports: [DatePipe, DialogModule, FormsModule, GlobalCatalogOrderBuilderComponent, TableModule],
   template: `
     <div class="flex flex-col gap-6">
-      <section class="surface-panel p-6 md:p-7">
+      <section class="surface-panel min-w-0 overflow-hidden p-6 md:p-7">
         <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p class="section-eyebrow">1. Import riassortimento</p>
@@ -598,9 +598,9 @@ type DraftSupplierCard = {
             Nessun fornitore configurato. Aggiungine uno e carica il primo listino.
           </div>
         } @else {
-          <div class="mt-6 grid gap-5 xl:grid-cols-2">
+          <div class="mt-6 grid min-w-0 gap-5 xl:grid-cols-2">
             @for (draftSupplier of draftSuppliers(); track draftSupplier.id) {
-              <div class="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
+              <div class="min-w-0 max-w-full overflow-hidden rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
                 <div class="flex items-start justify-between gap-3">
                   <div class="flex min-w-0 items-center gap-3">
                     <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]">
@@ -641,7 +641,7 @@ type DraftSupplierCard = {
                   </label>
                   <input
                     type="text"
-                    class="app-input w-full"
+                    class="app-input min-w-0 max-w-full"
                     [ngModel]="draftSupplier.name"
                     [disabled]="isDraftSupplierBusy(draftSupplier.id)"
                     placeholder="Es. Fornitore Alpha"
@@ -652,7 +652,7 @@ type DraftSupplierCard = {
                 <label
                   [for]="draftSupplierInputId(draftSupplier.id)"
                   [class]="uploadDropzoneClass(draftSupplierCardState(draftSupplier.id).status)"
-                  class="mt-4 block cursor-pointer rounded-2xl border border-dashed px-4 py-4 transition duration-200"
+                  class="mt-4 block min-w-0 max-w-full cursor-pointer overflow-hidden rounded-2xl border border-dashed px-4 py-4 transition duration-200"
                 >
                   <input
                     [id]="draftSupplierInputId(draftSupplier.id)"
@@ -684,7 +684,7 @@ type DraftSupplierCard = {
                     </span>
                   }
                   @if (draftSupplierCardState(draftSupplier.id).fileName) {
-                    <span class="rounded-full border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1 text-xs font-medium text-[var(--app-text-muted)]">
+                    <span class="min-w-0 max-w-full truncate rounded-full border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1 text-xs font-medium text-[var(--app-text-muted)]">
                       {{ draftSupplierCardState(draftSupplier.id).fileName }}
                     </span>
                   }
@@ -708,8 +708,61 @@ type DraftSupplierCard = {
             }
 
             @for (supplier of suppliers(); track supplier.id) {
-              <div class="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
-                <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0 max-w-full overflow-hidden rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
+                <div class="flex min-w-0 items-center gap-3 md:hidden">
+                  <button
+                    type="button"
+                    class="min-w-0 flex-1 text-left"
+                    [attr.aria-expanded]="isSupplierCardExpanded(supplier.id)"
+                    (click)="toggleSupplierCard(supplier.id)"
+                  >
+                    <span class="block truncate text-base font-semibold text-[var(--app-text)]">
+                      {{ supplier.name }}
+                    </span>
+                    <span class="mt-0.5 block truncate text-xs text-[var(--app-text-muted)]">
+                      {{ supplierCardState(supplier.id).fileName || 'Nessun file caricato' }}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition disabled:cursor-not-allowed disabled:opacity-50"
+                    [class]="(supplier.preferred ?? false)
+                      ? 'border-[var(--app-success-border)] bg-[var(--app-success-bg)] text-[var(--app-success-text)]'
+                      : 'border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text-muted)]'"
+                    [disabled]="supplierPreferenceUpdatingId() !== null || supplierRemovingId() !== null"
+                    [attr.aria-label]="(supplier.preferred ?? false) ? 'Rimuovi fornitore favorito' : 'Imposta fornitore favorito'"
+                    (click)="supplierPreferredChanged.emit({ supplierId: supplier.id, preferred: !(supplier.preferred ?? false) })"
+                  >
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <path
+                        [attr.fill]="(supplier.preferred ?? false) ? 'currentColor' : 'none'"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M11.48 3.5a.56.56 0 0 1 1.04 0l2.1 5.36a.56.56 0 0 0 .47.35l5.74.43a.56.56 0 0 1 .32.98l-4.37 3.74a.56.56 0 0 0-.18.56l1.33 5.6a.56.56 0 0 1-.84.61L12.3 18.2a.56.56 0 0 0-.6 0l-4.88 2.93a.56.56 0 0 1-.84-.61l1.33-5.6a.56.56 0 0 0-.18-.56L2.76 10.6a.56.56 0 0 1 .32-.98l5.74-.43a.56.56 0 0 0 .47-.35z"
+                      />
+                    </svg>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--app-danger-border)] bg-[var(--app-danger-bg)] text-[var(--app-danger-text)] transition disabled:cursor-not-allowed disabled:opacity-50"
+                    [disabled]="supplierRemovingId() !== null || supplierPreferenceUpdatingId() !== null"
+                    [attr.aria-label]="'Rimuovi il fornitore ' + supplier.name"
+                    (click)="supplierRemovalRequested.emit(supplier)"
+                  >
+                    <i
+                      [class]="supplierRemovingId() === supplier.id ? 'pi pi-spin pi-spinner' : 'pi pi-trash'"
+                      aria-hidden="true"
+                    ></i>
+                  </button>
+                </div>
+
+                <div
+                  class="mt-5 md:mt-0 md:block"
+                  [class.hidden]="!isSupplierCardExpanded(supplier.id)"
+                >
+                <div class="hidden items-start justify-between gap-3 md:flex">
                   <div class="flex min-w-0 items-center gap-3">
                     <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--brand-tertiary-soft)] text-[#1f6a46]">
                       <i class="pi pi-shop text-sm" aria-hidden="true"></i>
@@ -772,7 +825,7 @@ type DraftSupplierCard = {
                   </label>
                   <input
                     type="text"
-                    class="app-input w-full"
+                    class="app-input min-w-0 max-w-full"
                     [value]="supplier.name"
                     readonly
                   />
@@ -781,7 +834,7 @@ type DraftSupplierCard = {
                 <label
                   [for]="supplierInputId(supplier.id)"
                   [class]="uploadDropzoneClass(supplierCardState(supplier.id).status)"
-                  class="mt-4 block cursor-pointer rounded-2xl border border-dashed px-4 py-4 transition duration-200"
+                  class="mt-4 block min-w-0 max-w-full cursor-pointer overflow-hidden rounded-2xl border border-dashed px-4 py-4 transition duration-200"
                 >
                   <input
                     [id]="supplierInputId(supplier.id)"
@@ -824,16 +877,16 @@ type DraftSupplierCard = {
                 }
 
                 @if (persistedSupplierMapping(supplier.id); as savedMapping) {
-                  <details class="group mt-3">
+                  <details class="group mt-3 min-w-0 max-w-full">
                     <summary
-                      class="flex cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-1 py-2 text-sm transition hover:bg-[var(--app-surface-muted)]"
+                      class="flex min-w-0 cursor-pointer list-none flex-col items-start gap-2 rounded-xl px-1 py-2 text-sm transition hover:bg-[var(--app-surface-muted)] sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                     >
                       <span
-                        class="min-w-0 truncate rounded-full border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1 text-xs font-medium text-[var(--app-text-muted)]"
+                        class="block min-w-0 max-w-full truncate rounded-full border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-1 text-xs font-medium text-[var(--app-text-muted)]"
                       >
                         {{ supplierCardState(supplier.id).fileName }}
                       </span>
-                      <span class="ml-auto inline-flex shrink-0 items-center gap-2 font-semibold text-black">
+                      <span class="inline-flex shrink-0 items-center gap-2 font-semibold text-black sm:ml-auto">
                         <span class="group-open:hidden">Mostra mapping</span>
                         <span class="hidden group-open:inline">Nascondi mapping</span>
                         <i class="pi pi-chevron-down text-xs transition-transform group-open:rotate-180" aria-hidden="true"></i>
@@ -914,7 +967,7 @@ type DraftSupplierCard = {
                 }
 
                 @if (supplierCardState(supplier.id).updatedAt) {
-                  <p class="mt-3 text-right text-xs text-[var(--app-text-muted)]">
+                  <p class="mt-3 break-words text-left text-xs text-[var(--app-text-muted)] sm:text-right">
                     Ultimo aggiornamento
                     {{ supplierCardState(supplier.id).updatedAt | date: 'dd/MM/yyyy HH:mm' }}
                   </p>
@@ -1059,6 +1112,7 @@ type DraftSupplierCard = {
                     </div>
                   }
                 }
+                </div>
               </div>
             }
           </div>
@@ -1129,6 +1183,7 @@ export class OrderImportTabComponent {
     Record<string, SupplierColumnMapping | null>
   >({});
   readonly draftSuppliers = signal<DraftSupplierCard[]>([]);
+  readonly expandedSupplierCards = signal<Record<string, boolean>>({});
   readonly dialogQuantities = signal<Record<string, number>>({});
   readonly restockMode = signal<'catalog' | 'import' | null>(null);
 
@@ -1142,6 +1197,17 @@ export class OrderImportTabComponent {
   private dialogSaveTimeoutId: ReturnType<typeof setTimeout> | null = null;
   orderProductsDialogVisible = false;
   readonly draftItemsCount = computed(() => this.order().items.length);
+
+  isSupplierCardExpanded(supplierId: string): boolean {
+    return this.expandedSupplierCards()[supplierId] ?? false;
+  }
+
+  toggleSupplierCard(supplierId: string): void {
+    this.expandedSupplierCards.update((state) => ({
+      ...state,
+      [supplierId]: !state[supplierId],
+    }));
+  }
 
   readonly orderFileCardState = computed<UploadCardState>(() => {
     const previewState = this.orderImportPreviewState();
