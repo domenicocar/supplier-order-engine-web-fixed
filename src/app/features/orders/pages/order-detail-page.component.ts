@@ -936,11 +936,13 @@ export class OrderDetailPageComponent {
 
     if (normalizedQuery.length < 2) {
       this.globalCatalogProducts.set([]);
+      this.globalCatalogLoading.set(false);
       this.globalCatalogSearched.set(false);
       this.globalCatalogError.set(null);
       return;
     }
 
+    this.globalCatalogLoading.set(true);
     this.globalCatalogSearchTimeoutId = setTimeout(() => {
       this.globalCatalogSearchTimeoutId = null;
       void this.searchGlobalCatalog(normalizedQuery);
@@ -990,8 +992,10 @@ export class OrderDetailPageComponent {
     }
 
     const nextItems = [...itemsByEan.values()];
+    const previousItems = currentOrder.items.map((item) => ({ ...item }));
     this.globalCatalogSaving.set(true);
     this.globalCatalogError.set(null);
+    this.ordersStore.setOrderItems(orderId, nextItems);
 
     try {
       await firstValueFrom(
@@ -1016,6 +1020,7 @@ export class OrderDetailPageComponent {
       );
     } catch (error: unknown) {
       const message = this.toMessage(error, 'Salvataggio quantità non riuscito.');
+      this.ordersStore.setOrderItems(orderId, previousItems);
       this.globalCatalogError.set(message);
       this.showToast('error', 'Operazione non riuscita', message);
     } finally {

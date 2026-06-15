@@ -51,7 +51,10 @@ type DraftSupplierCard = {
   imports: [DatePipe, DialogModule, FormsModule, GlobalCatalogOrderBuilderComponent, TableModule],
   template: `
     <div class="flex flex-col gap-6">
-      <section class="surface-panel min-w-0 overflow-hidden !rounded-none !border-0 !bg-transparent pb-8 pt-9 !shadow-none md:!rounded-2xl md:!border md:!bg-[var(--app-surface)] md:!p-7 md:!shadow-[var(--app-shadow)]">
+      <section
+        class="surface-panel min-w-0 overflow-hidden !rounded-none !border-0 !bg-transparent pb-8 pt-9 !shadow-none md:!rounded-2xl md:!border md:!bg-[var(--app-surface)] md:!p-7 md:!shadow-[var(--app-shadow)]"
+        [class.catalog-search-panel]="catalogSearchMode()"
+      >
         <div class="mb-6 hidden flex-col gap-4 md:flex lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p class="section-eyebrow">1. Import riassortimento</p>
@@ -59,51 +62,33 @@ type DraftSupplierCard = {
           </div>
 
           <div class="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              class="shrink-0 rounded-2xl border border-[var(--brand-primary)] bg-white px-4 py-2.5 text-sm font-semibold text-[var(--brand-primary)] transition hover:bg-[var(--brand-primary-soft)]"
-              (click)="openOrderProductsDialog()"
-            >
-              Vedi riassortimento
-            </button>
-            @if (restockMode() !== null) {
+            @if (restockMode() === 'import') {
               <button
                 type="button"
                 class="shrink-0 rounded-2xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:border-slate-400 hover:bg-slate-50"
-                (click)="toggleRestockMode()"
+                (click)="restockMode.set('catalog')"
               >
-                {{
-                  restockMode() === 'catalog'
-                    ? 'Importa da file'
-                    : 'Riordino manuale'
-                }}
+                Riordino manuale
               </button>
             }
           </div>
         </div>
 
         <div class="mb-6 md:hidden">
-          <p class="section-eyebrow">1. Import riassortimento</p>
-          <h2 class="section-title">Riassortimento</h2>
-          @if (restockMode() !== null) {
+          @if (catalogSearchMode()) {
+            <h2 class="section-title !mt-0">Cerca prodotti</h2>
+          } @else {
+            <p class="section-eyebrow">1. Import riassortimento</p>
+            <h2 class="section-title">Riassortimento</h2>
+          }
+          @if (restockMode() === 'import' && !catalogSearchMode()) {
             <div class="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
-                class="rounded-xl border border-[var(--brand-primary)] bg-white px-3 py-2 text-xs font-semibold text-[var(--brand-primary)]"
-                (click)="openOrderProductsDialog()"
-              >
-                Vedi riassortimento
-              </button>
-              <button
-                type="button"
                 class="rounded-xl border border-[var(--app-border)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-text)]"
-                (click)="toggleRestockMode()"
+                (click)="restockMode.set('catalog')"
               >
-                {{
-                  restockMode() === 'catalog'
-                    ? 'Importa da file'
-                    : 'Crea manualmente'
-                }}
+                Crea manualmente
               </button>
             </div>
           }
@@ -187,6 +172,8 @@ type DraftSupplierCard = {
             [error]="globalCatalogError()"
             (searchRequested)="globalCatalogSearchRequested.emit($event)"
             (productsAdded)="globalCatalogProductsAdded.emit($event)"
+            (searchModeChanged)="catalogSearchMode.set($event)"
+            (importRequested)="restockMode.set('import')"
           />
         } @else if (restockMode() === 'import') {
         <div class="rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5 shadow-sm">
@@ -630,6 +617,7 @@ type DraftSupplierCard = {
         } -->
       </section>
 
+      @if (!catalogSearchMode()) {
       <section class="surface-panel !rounded-none !border-0 !bg-transparent px-0 py-6 !shadow-none md:!rounded-2xl md:!border md:!bg-[var(--app-surface)] md:!p-7 md:!shadow-[var(--app-shadow)]">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -1185,8 +1173,28 @@ type DraftSupplierCard = {
           </div>
         }
       </section>
+      }
+
     </div>
   `,
+  styles: [
+    `
+      @media (min-width: 768px) {
+        .catalog-search-panel {
+          display: flex;
+          min-height: calc(100vh - 2.5rem);
+          position: relative;
+          flex-direction: column;
+        }
+
+        .catalog-search-panel app-global-catalog-order-builder {
+          display: flex;
+          flex: 1 1 auto;
+          flex-direction: column;
+        }
+      }
+    `
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OrderImportTabComponent {
@@ -1252,7 +1260,8 @@ export class OrderImportTabComponent {
   readonly draftSuppliers = signal<DraftSupplierCard[]>([]);
   readonly expandedSupplierCards = signal<Record<string, boolean>>({});
   readonly dialogQuantities = signal<Record<string, number>>({});
-  readonly restockMode = signal<'catalog' | 'import' | null>(null);
+  readonly restockMode = signal<'catalog' | 'import' | null>('catalog');
+  readonly catalogSearchMode = signal(false);
 
   readonly orderItemsPageSize = 10;
   readonly dialogSkeletonRows = [1, 2, 3];
@@ -1459,6 +1468,7 @@ export class OrderImportTabComponent {
   }
 
   toggleRestockMode(): void {
+    this.catalogSearchMode.set(false);
     this.restockMode.update((mode) => (mode === 'catalog' ? 'import' : 'catalog'));
   }
 
