@@ -332,6 +332,7 @@ interface ToastNotification {
                     [globalCatalogProducts]="globalCatalogProducts()"
                     [globalCatalogLoading]="globalCatalogLoading()"
                     [globalCatalogSaving]="globalCatalogSaving()"
+                    [globalCatalogSavingEans]="globalCatalogSavingEans()"
                     [globalCatalogSearched]="globalCatalogSearched()"
                     [globalCatalogError]="globalCatalogError()"
                     (orderFileSelected)="onOrderFileSelected($event)"
@@ -781,6 +782,7 @@ export class OrderDetailPageComponent {
   readonly globalCatalogProducts = signal<GlobalCatalogProduct[]>([]);
   readonly globalCatalogLoading = signal(false);
   readonly globalCatalogSaving = signal(false);
+  readonly globalCatalogSavingEans = signal<Set<string>>(new Set());
   readonly globalCatalogSearched = signal(false);
   readonly globalCatalogError = signal<string | null>(null);
   readonly supplierRemovalTarget = signal<SupplierDefinition | null>(null);
@@ -994,7 +996,13 @@ export class OrderDetailPageComponent {
 
     const nextItems = [...itemsByEan.values()];
     const previousItems = currentOrder.items.map((item) => ({ ...item }));
+    const savingEans = products.map((product) => product.ean);
     this.globalCatalogSaving.set(true);
+    this.globalCatalogSavingEans.update((currentEans) => {
+      const nextEans = new Set(currentEans);
+      savingEans.forEach((ean) => nextEans.add(ean));
+      return nextEans;
+    });
     this.globalCatalogError.set(null);
     this.ordersStore.setOrderItems(orderId, nextItems);
 
@@ -1012,13 +1020,6 @@ export class OrderDetailPageComponent {
       );
       const response = await firstValueFrom(this.ordersService.getOrderById(orderId));
       this.ordersStore.upsertOrder(response.order);
-      this.showToast(
-        'success',
-        'Riordino aggiornato',
-        products.length === 1
-          ? 'Quantità salvata.'
-          : `${products.length} quantità salvate.`
-      );
     } catch (error: unknown) {
       const message = this.toMessage(error, 'Salvataggio quantità non riuscito.');
       this.ordersStore.setOrderItems(orderId, previousItems);
@@ -1026,6 +1027,11 @@ export class OrderDetailPageComponent {
       this.showToast('error', 'Operazione non riuscita', message);
     } finally {
       this.globalCatalogSaving.set(false);
+      this.globalCatalogSavingEans.update((currentEans) => {
+        const nextEans = new Set(currentEans);
+        savingEans.forEach((ean) => nextEans.delete(ean));
+        return nextEans;
+      });
     }
   }
 

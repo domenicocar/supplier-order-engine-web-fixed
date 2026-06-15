@@ -72,7 +72,13 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
                   {{ item.description || 'Prodotto senza descrizione' }}
                 </p>
                 <div class="mt-3 flex items-center justify-between gap-3 border-t border-[var(--app-border)] pt-3">
-                  <span class="text-xs text-[var(--app-text-muted)]">Quantità</span>
+                  <span class="text-xs text-[var(--app-text-muted)]">Cartoni</span>
+                  @if (isProductSaving(item.ean)) {
+                    <div
+                      class="h-10 w-[7.5rem] shrink-0 animate-pulse rounded-xl bg-slate-200"
+                      aria-label="Salvataggio quantità in corso"
+                    ></div>
+                  } @else {
                   <div class="flex items-center overflow-hidden rounded-xl border border-[var(--app-border)]">
                     <button
                       type="button"
@@ -93,6 +99,7 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
                       <i class="pi pi-plus text-xs" aria-hidden="true"></i>
                     </button>
                   </div>
+                  }
                 </div>
               </li>
             }
@@ -104,7 +111,7 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
                 <tr>
                   <th class="px-4 py-3 font-semibold">EAN</th>
                   <th class="px-4 py-3 font-semibold">Descrizione</th>
-                  <th class="w-40 px-4 py-3 text-center font-semibold">Quantità</th>
+                  <th class="w-40 px-4 py-3 text-center font-semibold">Cartoni</th>
                 </tr>
               </thead>
               <tbody>
@@ -115,6 +122,9 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
                       {{ item.description || 'Prodotto senza descrizione' }}
                     </td>
                     <td class="px-4 py-3">
+                      @if (isProductSaving(item.ean)) {
+                        <div class="mx-auto h-10 w-[7.5rem] animate-pulse rounded-xl bg-slate-200"></div>
+                      } @else {
                       <div class="mx-auto flex w-fit items-center overflow-hidden rounded-xl border border-[var(--app-border)]">
                         <button
                           type="button"
@@ -135,6 +145,7 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
                           <i class="pi pi-plus text-xs" aria-hidden="true"></i>
                         </button>
                       </div>
+                      }
                     </td>
                   </tr>
                 }
@@ -241,21 +252,7 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
 
       @if (products().length > 0 && !showSearchSkeleton()) {
         <div class="mt-5 space-y-3 md:hidden">
-          @if (saving()) {
-            @for (row of skeletonRows; track row) {
-              <article class="animate-pulse rounded-2xl border border-slate-200 bg-white p-4">
-                <div class="h-3 w-16 rounded bg-slate-200"></div>
-                <div class="mt-2 h-4 w-32 rounded bg-slate-200"></div>
-                <div class="mt-5 h-3 w-24 rounded bg-slate-200"></div>
-                <div class="mt-2 h-4 w-4/5 rounded bg-slate-200"></div>
-                <div class="mt-5 flex items-center justify-between">
-                  <div class="h-3 w-20 rounded bg-slate-200"></div>
-                  <div class="h-12 w-20 rounded-2xl bg-slate-200"></div>
-                </div>
-              </article>
-            }
-          } @else {
-            @for (product of products(); track product.ean) {
+          @for (product of products(); track product.ean) {
               <article
                 class="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.05)]"
               >
@@ -282,8 +279,14 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
                     <p class="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-slate-400">
                       Quantità
                     </p>
-                    <p class="mt-1 text-xs text-slate-500">Pezzi da ordinare</p>
+                    <p class="mt-1 text-xs text-slate-500">Cartoni</p>
                   </div>
+                  @if (isProductSaving(product.ean)) {
+                    <div
+                      class="h-12 w-[8.25rem] shrink-0 animate-pulse rounded-2xl bg-slate-200"
+                      aria-label="Salvataggio quantità in corso"
+                    ></div>
+                  } @else {
                   <div
                     class="flex shrink-0 items-center overflow-hidden rounded-2xl border border-[var(--app-border)] bg-white"
                     [attr.aria-label]="'Quantità per ' + product.description"
@@ -312,9 +315,9 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
                       <i class="pi pi-plus text-xs" aria-hidden="true"></i>
                     </button>
                   </div>
+                  }
                 </div>
               </article>
-            }
           }
         </div>
 
@@ -329,26 +332,14 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
                 </tr>
               </thead>
               <tbody>
-                @if (saving()) {
-                  @for (row of skeletonRows; track row) {
-                    <tr class="border-t border-slate-100">
-                      <td class="px-4 py-4">
-                        <div class="h-4 w-32 animate-pulse rounded bg-slate-200"></div>
-                      </td>
-                      <td class="px-4 py-4">
-                        <div class="h-4 w-3/4 animate-pulse rounded bg-slate-200"></div>
-                      </td>
-                      <td class="px-4 py-4">
-                        <div class="mx-auto h-11 w-14 animate-pulse rounded-xl bg-slate-200"></div>
-                      </td>
-                    </tr>
-                  }
-                } @else {
-                  @for (product of products(); track product.ean) {
+                @for (product of products(); track product.ean) {
                     <tr class="border-t border-slate-100">
                       <td class="px-4 py-3 font-medium text-slate-800">{{ product.ean }}</td>
                       <td class="px-4 py-3 text-slate-700">{{ product.description }}</td>
                       <td class="px-4 py-3 text-center">
+                        @if (isProductSaving(product.ean)) {
+                          <div class="mx-auto h-11 w-14 animate-pulse rounded-xl bg-slate-200"></div>
+                        } @else {
                         <input
                           type="number"
                           min="0"
@@ -357,9 +348,9 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
                           [ngModel]="quantityFor(product.ean)"
                           (ngModelChange)="setQuantity(product.ean, $event)"
                         />
+                        }
                       </td>
                     </tr>
-                  }
                 }
               </tbody>
             </table>
@@ -410,6 +401,7 @@ export class GlobalCatalogOrderBuilderComponent {
   readonly existingItems = input<OrderItem[]>([]);
   readonly loading = input(false);
   readonly saving = input(false);
+  readonly savingEans = input<Set<string>>(new Set());
   readonly searched = input(false);
   readonly error = input<string | null>(null);
   readonly searchRequested = output<string>();
@@ -577,6 +569,10 @@ export class GlobalCatalogOrderBuilderComponent {
       this.pendingProducts.clear();
       this.productsAdded.emit(productsToSave);
     }, 400);
+  }
+
+  isProductSaving(ean: string): boolean {
+    return this.savingEans().has(ean);
   }
 
   private scrollToSelectedItemsStart(): void {

@@ -168,6 +168,7 @@ type DraftSupplierCard = {
             [existingItems]="order().items"
             [loading]="globalCatalogLoading()"
             [saving]="globalCatalogSaving()"
+            [savingEans]="globalCatalogSavingEans()"
             [searched]="globalCatalogSearched()"
             [error]="globalCatalogError()"
             (searchRequested)="globalCatalogSearchRequested.emit($event)"
@@ -462,7 +463,7 @@ type DraftSupplierCard = {
                         <p class="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-slate-400">
                           Quantità
                         </p>
-                        <p class="mt-1 text-xs text-slate-500">Pezzi da ordinare</p>
+                        <p class="mt-1 text-xs text-slate-500">Cartoni</p>
                       </div>
                       <div
                         class="flex shrink-0 items-center overflow-hidden rounded-2xl border border-[var(--app-border)] bg-white"
@@ -1219,6 +1220,7 @@ export class OrderImportTabComponent {
   readonly globalCatalogProducts = input<GlobalCatalogProduct[]>([]);
   readonly globalCatalogLoading = input(false);
   readonly globalCatalogSaving = input(false);
+  readonly globalCatalogSavingEans = input<Set<string>>(new Set());
   readonly globalCatalogSearched = input(false);
   readonly globalCatalogError = input<string | null>(null);
 
