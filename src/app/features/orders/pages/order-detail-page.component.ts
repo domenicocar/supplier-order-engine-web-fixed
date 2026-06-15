@@ -148,7 +148,7 @@ interface ToastNotification {
       </section>
     } @else {
       @if (order(); as currentOrder) {
-        <section class="flex flex-col gap-6">
+        <section class="flex flex-col gap-0 md:gap-6">
           @if (toastNotification(); as toast) {
             <div
               class="pointer-events-none fixed bottom-4 left-1/2 z-[60] w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 sm:bottom-6"
@@ -183,7 +183,43 @@ interface ToastNotification {
             </div>
           }
 
-          <div class="order-header surface-panel">
+          <div class="mobile-order-header md:hidden">
+            <div class="mobile-order-header__topbar">
+              <a
+                routerLink="/app/orders"
+                class="mobile-order-header__icon-button"
+                aria-label="Torna agli ordini"
+              >
+                <i class="pi pi-chevron-left" aria-hidden="true"></i>
+              </a>
+
+              <h1 class="mobile-order-header__title">Nuovo ordine</h1>
+
+              <button
+                type="button"
+                class="mobile-order-header__icon-button"
+                aria-label="Menu ordine"
+              >
+                <i class="pi pi-bars" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            <div class="mobile-order-header__metrics">
+              <div class="mobile-order-header__metric">
+                <i class="pi pi-box" aria-hidden="true"></i>
+                <strong>{{ currentOrder.items.length }}</strong>
+                <span>prodotti</span>
+              </div>
+              <div class="mobile-order-header__divider" aria-hidden="true"></div>
+              <div class="mobile-order-header__metric">
+                <i class="pi pi-shop" aria-hidden="true"></i>
+                <strong>{{ suppliers().length }}</strong>
+                <span>fornitori</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="order-header surface-panel hidden md:flex">
             <div class="order-header__main">
               <a
                 routerLink="/app/orders"
@@ -249,12 +285,26 @@ interface ToastNotification {
             class="order-detail-tabs flex min-w-0 flex-col gap-6"
           >
             <p-tablist>
-              <p-tab value="import">Import</p-tab>
+              <p-tab value="import">
+                <span class="order-step-tab">
+                  <span class="order-step-tab__number">1</span>
+                  <span class="md:hidden">Import</span>
+                  <span class="hidden md:inline">Import</span>
+                </span>
+              </p-tab>
               <p-tab value="comparison" [disabled]="supplierTabsDisabled()">
-                Confronto fornitori
+                <span class="order-step-tab">
+                  <span class="order-step-tab__number">2</span>
+                  <span class="md:hidden">Confronto</span>
+                  <span class="hidden md:inline">Confronto fornitori</span>
+                </span>
               </p-tab>
               <p-tab value="export" [disabled]="supplierTabsDisabled()">
-                Riepilogo e Export
+                <span class="order-step-tab">
+                  <span class="order-step-tab__number">3</span>
+                  <span class="md:hidden">Riepilogo</span>
+                  <span class="hidden md:inline">Riepilogo e Export</span>
+                </span>
               </p-tab>
             </p-tablist>
 

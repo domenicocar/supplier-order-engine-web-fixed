@@ -697,6 +697,17 @@ a {
   }
 }
 
+@media (min-width: 768px) {
+  .order-step-tab__number {
+    display: none;
+  }
+
+  .order-step-tab {
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
 @media (max-width: 1023px) {
   .order-header {
     align-items: flex-start;
@@ -714,6 +725,84 @@ a {
 }
 
 @media (max-width: 767px) {
+  body,
+  .app-page-shell {
+    background: #fff;
+  }
+
+  .mobile-order-header {
+    padding: 0.25rem 0.25rem 1.5rem;
+    background: transparent;
+  }
+
+  .mobile-order-header__topbar {
+    display: grid;
+    grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+    align-items: center;
+    min-height: 4.75rem;
+  }
+
+  .mobile-order-header__title {
+    margin: 0;
+    color: var(--app-text);
+    font-size: 1.15rem;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .mobile-order-header__icon-button {
+    display: inline-flex;
+    width: 2.75rem;
+    height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: #263044;
+    font-size: 1.35rem;
+    text-decoration: none;
+  }
+
+  .mobile-order-header__metrics {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+    align-items: center;
+    margin: 1rem 1.25rem 0;
+    padding: 1.15rem 0.8rem;
+    border: 1px solid var(--app-border);
+    border-radius: 1rem;
+    background: var(--app-surface);
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.03);
+  }
+
+  .mobile-order-header__metric {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    color: var(--app-text);
+    white-space: nowrap;
+  }
+
+  .mobile-order-header__metric .pi {
+    font-size: 1.25rem;
+  }
+
+  .mobile-order-header__metric strong {
+    font-size: 1rem;
+  }
+
+  .mobile-order-header__metric span {
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+
+  .mobile-order-header__divider {
+    width: 1px;
+    height: 2rem;
+    background: var(--app-border);
+  }
+
   .order-header {
     flex-direction: column;
   }
@@ -734,28 +823,87 @@ a {
   .order-detail-tabs {
     min-width: 0;
     max-width: 100%;
+    gap: 0 !important;
   }
 
   .order-detail-tabs .p-tablist,
   .order-detail-tabs .p-tablist-content {
     min-width: 0;
     width: 100%;
+    background: transparent;
+  }
+
+  .order-detail-tabs .p-tabpanels,
+  .order-detail-tabs .p-tabpanel {
+    background: transparent;
   }
 
   .order-detail-tabs .p-tablist-tab-list {
     min-width: 0;
     width: 100%;
+    min-height: 6.5rem;
+    padding: 0 0.35rem;
   }
 
   .order-detail-tabs .p-tab {
     flex: 1 1 0;
     min-width: 0;
     justify-content: center;
-    padding: 0.85rem 0.35rem;
+    padding: 1.4rem 0.1rem;
     text-align: center;
     white-space: normal;
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     line-height: 1.25;
+  }
+
+  .order-detail-tabs .p-tablist-tab-list {
+    border-bottom: 1px solid var(--app-border);
+  }
+
+  .order-detail-tabs .p-tablist-active-bar {
+    display: none;
+  }
+
+  .order-step-tab {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    color: var(--app-text-muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .order-step-tab__number {
+    display: inline-flex;
+    width: 1.85rem;
+    height: 1.85rem;
+    flex: 0 0 1.85rem;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid #aeb4c2;
+    border-radius: 999px;
+    background: #fff;
+    color: #7b8190;
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .order-detail-tabs .p-tab.p-tab-active .order-step-tab {
+    color: var(--brand-primary);
+  }
+
+  .order-detail-tabs .p-tab.p-tab-active .order-step-tab__number {
+    border-color: var(--brand-primary);
+    background: var(--brand-primary);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+  }
+
+  .order-detail-tabs .p-tab:disabled .order-step-tab {
+    opacity: 0.62;
   }
 
   .supplier-summary__header {

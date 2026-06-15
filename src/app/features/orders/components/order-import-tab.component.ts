@@ -51,8 +51,8 @@ type DraftSupplierCard = {
   imports: [DatePipe, DialogModule, FormsModule, GlobalCatalogOrderBuilderComponent, TableModule],
   template: `
     <div class="flex flex-col gap-6">
-      <section class="surface-panel min-w-0 overflow-hidden p-6 md:p-7">
-        <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <section class="surface-panel min-w-0 overflow-hidden !rounded-none !border-0 !bg-transparent pb-8 pt-9 !shadow-none md:!rounded-2xl md:!border md:!bg-[var(--app-surface)] md:!p-7 md:!shadow-[var(--app-shadow)]">
+        <div class="mb-6 hidden flex-col gap-4 md:flex lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p class="section-eyebrow">1. Import riassortimento</p>
             <h2 class="section-title">Riassortimento</h2>
@@ -82,8 +82,35 @@ type DraftSupplierCard = {
           </div>
         </div>
 
+        <div class="mb-6 md:hidden">
+          <p class="section-eyebrow">1. Import riassortimento</p>
+          <h2 class="section-title">Riassortimento</h2>
+          @if (restockMode() !== null) {
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                class="rounded-xl border border-[var(--brand-primary)] bg-white px-3 py-2 text-xs font-semibold text-[var(--brand-primary)]"
+                (click)="openOrderProductsDialog()"
+              >
+                Vedi riassortimento
+              </button>
+              <button
+                type="button"
+                class="rounded-xl border border-[var(--app-border)] bg-white px-3 py-2 text-xs font-semibold text-[var(--app-text)]"
+                (click)="toggleRestockMode()"
+              >
+                {{
+                  restockMode() === 'catalog'
+                    ? 'Importa da file'
+                    : 'Crea manualmente'
+                }}
+              </button>
+            </div>
+          }
+        </div>
+
         @if (restockMode() === null) {
-        <div class="grid gap-3 md:grid-cols-2">
+        <div class="hidden gap-3 md:grid md:grid-cols-2">
           <button
             type="button"
             class="rounded-2xl border border-[var(--app-border)] bg-white p-4 text-left transition hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary-soft)]"
@@ -107,6 +134,46 @@ type DraftSupplierCard = {
             <span class="mt-1 block text-xs text-[var(--app-text-muted)]">
               Carica un file esistente e conferma le colonne da importare.
             </span>
+          </button>
+        </div>
+
+        <div class="overflow-hidden rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] shadow-[0_8px_24px_rgba(37,99,235,0.04)] md:hidden">
+          <button
+            type="button"
+            class="flex w-full items-center gap-4 p-4 text-left transition active:bg-[var(--brand-primary-soft)]"
+            (click)="restockMode.set('catalog')"
+          >
+            <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]">
+              <i class="pi pi-plus text-xl" aria-hidden="true"></i>
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-base font-semibold text-[var(--app-text)]">
+                Crea manualmente
+              </span>
+              <span class="mt-1 block text-sm leading-5 text-[var(--app-text-muted)]">
+                Cerca i prodotti e aggiungi le quantità
+              </span>
+            </span>
+            <i class="pi pi-chevron-right shrink-0 text-sm text-[var(--app-text)]" aria-hidden="true"></i>
+          </button>
+
+          <button
+            type="button"
+            class="flex w-full items-center gap-4 border-t border-[var(--app-border)] p-4 text-left transition active:bg-[var(--brand-primary-soft)]"
+            (click)="restockMode.set('import')"
+          >
+            <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]">
+              <i class="pi pi-cloud-upload text-xl" aria-hidden="true"></i>
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-base font-semibold text-[var(--app-text)]">
+                Importa da file
+              </span>
+              <span class="mt-1 block text-sm leading-5 text-[var(--app-text-muted)]">
+                Carica CSV, Excel o PDF
+              </span>
+            </span>
+            <i class="pi pi-chevron-right shrink-0 text-sm text-[var(--app-text)]" aria-hidden="true"></i>
           </button>
         </div>
         }
@@ -563,7 +630,7 @@ type DraftSupplierCard = {
         } -->
       </section>
 
-      <section class="surface-panel p-6 md:p-7">
+      <section class="surface-panel !rounded-none !border-0 !bg-transparent px-0 py-6 !shadow-none md:!rounded-2xl md:!border md:!bg-[var(--app-surface)] md:!p-7 md:!shadow-[var(--app-shadow)]">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p class="section-eyebrow">2. Fornitori</p>
