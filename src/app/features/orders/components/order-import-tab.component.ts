@@ -625,7 +625,7 @@ type DraftSupplierCard = {
             <h2 class="section-title">Fornitori e listini</h2>
           </div>
 
-          <div class="flex flex-wrap items-center gap-3">
+          <div class="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto">
             <button
               type="button"
               class="inline-flex shrink-0 items-center gap-2 self-start rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--app-text)] shadow-sm transition hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary-soft)]"
@@ -641,7 +641,7 @@ type DraftSupplierCard = {
               [disabled]="!hasSupplierUploads() || supplierComparisonLoading()"
               (click)="supplierComparisonRequested.emit()"
             >
-              {{ supplierComparisonLoading() ? 'Confronto in corso...' : 'Confronta fornitori' }}
+              {{ supplierComparisonLoading() ? 'Confronto in corso...' : 'Confronta' }}
             </button>
           </div>
         </div>

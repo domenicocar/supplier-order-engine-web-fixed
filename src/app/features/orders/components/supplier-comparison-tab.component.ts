@@ -22,15 +22,11 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
   standalone: true,
   imports: [ButtonModule, SupplierOfferCardsComponent, TableModule],
   template: `
-    <section class="surface-panel p-6 md:p-7">
+    <section class="surface-panel min-w-0 overflow-x-clip !rounded-none !border-0 !bg-transparent px-0 pb-28 pt-6 !shadow-none md:!rounded-2xl md:!border md:!bg-[var(--app-surface)] md:!p-7 md:!shadow-[var(--app-shadow)]">
       <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div class="min-w-0">
           <p class="section-eyebrow">1. Confronto prodotti</p>
           <h2 class="section-title">Confronto prodotti fornitori</h2>
-          <p class="section-copy">
-            Ogni riga rappresenta un EAN trovato nei listini caricati. Puoi scegliere il
-            fornitore più conveniente o quello più adatto.
-          </p>
         </div>
 
         <div class="flex justify-start lg:justify-end">
@@ -41,13 +37,13 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
             [disabled]="!hasSupplierUploads() || loading()"
             (click)="loadRequested.emit()"
           >
-            {{ loading() ? 'Confronto in corso...' : 'Confronta fornitori' }}
+            {{ loading() ? 'Confronto in corso...' : 'Confronta' }}
           </button>
         </div>
       </div>
 
       <div
-        class="sticky top-0 z-30 -mx-6 mt-6 flex flex-col gap-3 border-y border-[var(--app-border)] bg-white/95 px-6 py-3 shadow-[0_10px_24px_rgba(37,99,235,0.08)] backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0 md:shadow-none lg:flex-row lg:items-center lg:justify-between"
+        class="sticky top-0 z-30 mx-0 mt-6 flex min-w-0 flex-col gap-3 border-y border-[var(--app-border)] bg-white/95 px-0 py-3 shadow-[0_10px_24px_rgba(37,99,235,0.08)] backdrop-blur md:static md:border-0 md:bg-transparent md:py-0 md:shadow-none lg:flex-row lg:items-center lg:justify-between"
       >
         <input
           type="search"
@@ -400,6 +396,28 @@ const SUPPLIER_COMPARISON_PAGE_SIZE = 10;
           </div>
         }
       }
+
+      <div class="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--app-border)] bg-white/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_30px_rgba(15,23,42,0.12)] backdrop-blur md:hidden">
+        <div class="mx-auto flex w-full max-w-md items-center justify-between gap-3 px-1">
+          <div class="min-w-0">
+            <p class="text-[0.68rem] text-[var(--app-text-muted)]">Totale selezionato</p>
+            <p class="mt-0.5 truncate text-lg font-bold text-[var(--app-text)]">
+              {{ comparisonEstimatedTotal() }}
+              <span class="text-[0.68rem] font-medium text-[var(--app-text-muted)]">
+                ({{ assignedProductsCount() }} prodotti)
+              </span>
+            </p>
+          </div>
+          <button
+            type="button"
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--brand-primary)] px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-95"
+            (click)="summaryRequested.emit()"
+          >
+            <span>Vai al riepilogo</span>
+            <i class="pi pi-chevron-right text-xs" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
     </section>
   `,
   styles: [
@@ -503,6 +521,7 @@ export class SupplierComparisonTabComponent {
   readonly selectionChanged = output<{ lineId: string; supplierId: string }>();
   readonly quantityChanged = output<{ lineId: string; quantity: number | null }>();
   readonly splitRequested = output<{ lineId: string }>();
+  readonly summaryRequested = output<void>();
 
   readonly searchTerm = signal('');
   readonly catalogViewMode = signal<'all' | 'ordered'>('all');
@@ -563,6 +582,24 @@ export class SupplierComparisonTabComponent {
     const end = Math.min(start + this.paginatedRows().length - 1, total);
 
     return `Mostrati ${start}-${end} di ${total} prodotti`;
+  });
+  readonly comparisonOrderRows = computed(() =>
+    this.rows().filter((row) => row.lineType === 'order' && (row.quantity ?? 0) > 0)
+  );
+  readonly comparisonProductsCount = computed(() => this.comparisonOrderRows().length);
+  readonly assignedProductsCount = computed(() =>
+    this.comparisonOrderRows().filter((row) => Boolean(row.selectedSupplierId)).length
+  );
+  readonly comparisonEstimatedTotal = computed(() => {
+    const total = this.comparisonOrderRows().reduce((sum, row) => {
+      if (row.selectedPrice === null || row.quantity === null) {
+        return sum;
+      }
+
+      return sum + row.selectedPrice * row.selectedPackageSize * row.quantity;
+    }, 0);
+
+    return this.euroFormatter.format(total);
   });
 
   readonly emptyStateMessage = computed(() =>

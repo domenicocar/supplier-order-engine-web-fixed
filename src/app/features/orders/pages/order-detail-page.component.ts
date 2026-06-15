@@ -364,6 +364,7 @@ interface ToastNotification {
                     (selectionChanged)="onSupplierComparisonSelectionChange($event)"
                     (quantityChanged)="onSupplierComparisonQuantityChange($event)"
                     (splitRequested)="onSupplierComparisonSplitRequested($event)"
+                    (summaryRequested)="activeTab.set('export')"
                   />
                 </div>
               </p-tabpanel>

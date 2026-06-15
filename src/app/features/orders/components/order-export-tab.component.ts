@@ -22,53 +22,10 @@ import { formatPrice } from './order-detail-view.utils';
   standalone: true,
   imports: [ButtonModule, FormsModule],
   template: `
-    <section class="surface-panel p-5 pb-28 md:p-8">
-      <div
-        class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
-      >
-        <div>
-          <p class="section-eyebrow">1. Export</p>
-          <h2 class="section-title">Riepilogo ordine</h2>
-          <p class="section-copy hidden md:block">
-            Vista finale dell'ordine con totale stimato, copertura fornitori e
-            prodotti da completare prima dell'export.
-          </p>
-        </div>
-
-        <div class="hidden flex-wrap gap-3 md:flex">
-          @if (readOnly()) {
-            <div
-              class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900"
-            >
-              Ordine storico chiuso
-            </div>
-          } @else {
-            <button
-              pButton
-              type="button"
-              class="justify-center !rounded-2xl !bg-[var(--brand-primary)] !px-6 !py-3 !text-sm !font-semibold !text-white"
-              [disabled]="exporting() || closing()"
-              (click)="exportRequested.emit()"
-            >
-              {{ exporting() ? 'Export in corso...' : 'Esporta ordine' }}
-            </button>
-
-            <button
-              pButton
-              type="button"
-              class="justify-center !rounded-2xl !bg-emerald-600 !px-6 !py-3 !text-sm !font-semibold !text-white"
-              [disabled]="exporting() || closing()"
-              (click)="closeRequested.emit()"
-            >
-              {{ closing() ? 'Chiusura in corso...' : 'Chiudi ordine' }}
-            </button>
-          }
-        </div>
-      </div>
-
+    <section class="surface-panel !rounded-none !border-0 !bg-transparent px-0 pb-28 pt-5 !shadow-none md:!rounded-2xl md:!border md:!bg-[var(--app-surface)] md:!p-8 md:!shadow-[var(--app-shadow)]">
       @if (readOnly()) {
         <div
-          class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 md:hidden"
+          class="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900"
         >
           Ordine storico chiuso
         </div>
@@ -76,91 +33,62 @@ import { formatPrice } from './order-detail-view.utils';
       }
 
       @if (overview(); as currentOverview) {
-        <div class="mt-5 rounded-3xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-5 md:hidden">
-          <div class="grid gap-4">
+        <div class="rounded-2xl border border-[var(--app-border)] bg-white p-4 shadow-sm md:p-6">
+          <div class="grid grid-cols-[minmax(0,1.15fr)_minmax(7.5rem,0.85fr)] gap-3 md:grid-cols-[minmax(0,1fr)_minmax(13rem,0.45fr)] md:gap-6">
             <div>
               <p class="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-[var(--brand-secondary)]">
                 Totale stimato
               </p>
-              <p class="mt-1 break-words font-heading text-[2rem] font-semibold leading-none tracking-tight text-[var(--brand-primary)]">
+              <p class="mt-1 break-words font-heading text-[1.75rem] font-semibold leading-none tracking-tight text-[var(--brand-primary)] md:text-[2.5rem]">
                 {{ formatPrice(currentOverview.estimatedTotal) }}
               </p>
-              <p class="text-xs text-[var(--app-text-muted)]">IVA esclusa</p>
+              <p class="mt-1 text-[0.68rem] text-[var(--app-text-muted)]">IVA esclusa</p>
             </div>
 
-            <div class="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-              <p class="text-[0.6rem] font-semibold uppercase tracking-[0.14em] text-emerald-800">
+            <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5 md:px-5 md:py-4">
+              <p class="text-[0.55rem] font-semibold uppercase tracking-[0.12em] text-emerald-800">
                 Copertura ordine
               </p>
-              <p class="font-heading text-2xl font-semibold text-emerald-800">
+              <p class="mt-1 font-heading text-2xl font-semibold leading-none text-emerald-800">
                 {{ coverageLabel(currentOverview) }}
               </p>
+              <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-100">
+                <div
+                  class="h-full rounded-full bg-emerald-600"
+                  [style.width]="coverageLabel(currentOverview)"
+                ></div>
+              </div>
             </div>
           </div>
 
-          <div class="mt-5 grid grid-cols-3 border-t border-[var(--app-border)] pt-4">
-            <div>
-              <p class="font-heading text-xl font-semibold text-[var(--app-text)]">
-                {{ currentOverview.productsCount }}
-              </p>
-              <p class="text-xs text-[var(--app-text-muted)]">Prodotti</p>
+          <div class="mt-5 grid grid-cols-3 border-t border-[var(--app-border)] pt-4 md:mt-6 md:pt-5">
+            <div class="flex items-center gap-2">
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]">
+                <i class="pi pi-box text-sm" aria-hidden="true"></i>
+              </span>
+              <div>
+                <p class="font-heading text-lg font-semibold leading-none text-[var(--app-text)]">{{ currentOverview.productsCount }}</p>
+                <p class="mt-1 text-[0.65rem] text-[var(--app-text-muted)]">Prodotti</p>
+              </div>
             </div>
-            <div class="border-x border-[var(--app-border)] px-4">
-              <p class="font-heading text-xl font-semibold text-[var(--app-text)]">
-                {{ currentOverview.totalQuantity }}
-              </p>
-              <p class="text-xs text-[var(--app-text-muted)]">Pezzi</p>
+            <div class="flex items-center gap-2 border-x border-[var(--app-border)] px-3">
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]">
+                <i class="pi pi-tag text-sm" aria-hidden="true"></i>
+              </span>
+              <div>
+                <p class="font-heading text-lg font-semibold leading-none text-[var(--app-text)]">{{ currentOverview.totalQuantity }}</p>
+                <p class="mt-1 text-[0.65rem] text-[var(--app-text-muted)]">Pezzi</p>
+              </div>
             </div>
-            <div class="pl-4">
-              <p class="font-heading text-xl font-semibold text-[var(--app-text)]">
-                {{ currentOverview.suppliersCount }}
-              </p>
-              <p class="text-xs text-[var(--app-text-muted)]">Fornitori</p>
+            <div class="flex items-center gap-2 pl-3">
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--brand-primary-soft)] text-[var(--brand-primary)]">
+                <i class="pi pi-shop text-sm" aria-hidden="true"></i>
+              </span>
+              <div>
+                <p class="font-heading text-lg font-semibold leading-none text-[var(--app-text)]">{{ currentOverview.suppliersCount }}</p>
+                <p class="mt-1 text-[0.65rem] text-[var(--app-text-muted)]">Fornitori</p>
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div class="summary-hero mt-8 hidden md:grid">
-          <div class="summary-hero__primary">
-            <p class="summary-hero__eyebrow">Estimated total</p>
-            <div class="summary-hero__primary-row">
-              <p class="summary-hero__amount">
-                {{ formatPrice(currentOverview.estimatedTotal) }}
-              </p>
-              <span class="summary-hero__caption">VAT excl.</span>
-            </div>
-          </div>
-
-          <div class="summary-hero__divider" aria-hidden="true"></div>
-
-          <div class="summary-hero__stats">
-            <div class="summary-hero__stat">
-              <p class="summary-hero__stat-value">
-                {{ currentOverview.productsCount }}
-              </p>
-              <p class="summary-hero__stat-label">Products</p>
-            </div>
-            <div class="summary-hero__stat">
-              <p class="summary-hero__stat-value">
-                {{ currentOverview.totalQuantity }}
-              </p>
-              <p class="summary-hero__stat-label">Pieces</p>
-            </div>
-            <div class="summary-hero__stat">
-              <p class="summary-hero__stat-value">
-                {{ currentOverview.suppliersCount }}
-              </p>
-              <p class="summary-hero__stat-label">Suppliers</p>
-            </div>
-          </div>
-
-          <div class="summary-hero__divider" aria-hidden="true"></div>
-
-          <div class="summary-hero__highlight">
-            <p class="summary-hero__highlight-label">Copertura ordine</p>
-            <p class="summary-hero__highlight-value">
-              {{ coverageLabel(currentOverview) }}
-            </p>
           </div>
         </div>
 
@@ -169,46 +97,46 @@ import { formatPrice } from './order-detail-view.utils';
           currentOverview.missingPricesCount > 0 ||
           currentOverview.missingQuantitiesCount > 0
         ) {
-          <div
-            class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900 md:mt-6"
-          >
-            <p class="font-semibold text-amber-950">
-              Riepilogo stimato e non ancora completo.
-            </p>
-            <div class="mt-2 grid gap-2 sm:flex sm:flex-wrap">
+          <div class="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-950 md:mt-6 md:p-5">
+            <div class="flex items-start gap-3">
+              <i class="pi pi-exclamation-triangle mt-0.5 text-xl text-amber-500" aria-hidden="true"></i>
+              <div>
+                <p class="text-xs font-semibold">Riepilogo stimato e non ancora completo.</p>
+                <p class="mt-1 text-[0.68rem] text-amber-800">Ci sono ancora prodotti da assegnare o trovare.</p>
+              </div>
+            </div>
+            <div class="mt-3 overflow-hidden rounded-xl border border-amber-100 bg-white md:grid md:grid-cols-2">
               @if (currentOverview.missingItemsCount > 0) {
-                <span
-                  class="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-900"
-                >
-                  {{ currentOverview.missingItemsCount }} prodotti non trovati
-                  nei fornitori
-                </span>
+                <div class="flex items-center gap-3 px-3 py-2.5">
+                  <i class="pi pi-search text-amber-500" aria-hidden="true"></i>
+                  <strong class="w-8 text-sm text-amber-600">{{ currentOverview.missingItemsCount }}</strong>
+                  <span class="text-[0.68rem] text-[var(--app-text)]">Prodotti non trovati nei fornitori</span>
+                </div>
               }
               @if (currentOverview.assignedItemsCount > 0) {
-                <span
-                  class="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-900"
-                >
-                  {{ currentOverview.assignedItemsCount }} prodotti assegnati a
-                  un fornitore
-                </span>
+                <div class="flex items-center gap-3 border-t border-amber-100 px-3 py-2.5 md:border-l md:border-t-0">
+                  <i class="pi pi-shop text-amber-500" aria-hidden="true"></i>
+                  <strong class="w-8 text-sm text-amber-600">{{ currentOverview.assignedItemsCount }}</strong>
+                  <span class="text-[0.68rem] text-[var(--app-text)]">Prodotti assegnati a un fornitore</span>
+                </div>
               }
               @if (currentOverview.missingPricesCount > 0) {
-                <span
-                  class="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-900"
-                >
-                  {{ currentOverview.missingPricesCount }} prodotti senza prezzo
-                </span>
+                <div class="flex items-center gap-3 border-t border-amber-100 px-3 py-2.5">
+                  <i class="pi pi-tag text-amber-500" aria-hidden="true"></i>
+                  <strong class="w-8 text-sm text-amber-600">{{ currentOverview.missingPricesCount }}</strong>
+                  <span class="text-[0.68rem] text-[var(--app-text)]">Prodotti senza prezzo</span>
+                </div>
               }
               @if (currentOverview.missingQuantitiesCount > 0) {
-                <span
-                  class="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-900"
-                >
-                  {{ currentOverview.missingQuantitiesCount }} prodotti senza
-                  quantita
-                </span>
+                <div class="flex items-center gap-3 border-t border-amber-100 px-3 py-2.5 md:border-l">
+                  <i class="pi pi-box text-amber-500" aria-hidden="true"></i>
+                  <strong class="w-8 text-sm text-amber-600">{{ currentOverview.missingQuantitiesCount }}</strong>
+                  <span class="text-[0.68rem] text-[var(--app-text)]">Prodotti senza quantità</span>
+                </div>
               }
             </div>
           </div>
+
         }
 
         <div class="mt-8">

@@ -367,7 +367,7 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
         </div>
       }
 
-      <div class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 items-center gap-16 border-t border-[var(--app-border)] bg-white/98 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur md:absolute md:bottom-0 md:left-0 md:right-0 md:px-7 md:py-4">
+      <div class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-2 items-center gap-16 border-t border-[var(--app-border)] bg-white/98 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur md:px-7 md:py-4">
         <button type="button" class="min-w-0 text-left" (click)="closeSearch()">
           <p class="text-xs text-[var(--app-text-muted)] md:text-sm">La tua lista</p>
           <p class="text-sm font-semibold text-[var(--app-text)] md:text-base">
