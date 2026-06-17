@@ -92,6 +92,32 @@ import { formatPrice } from './order-detail-view.utils';
           </div>
         </div>
 
+        @if (!readOnly()) {
+          <div class="mt-6 hidden justify-end gap-3 md:flex">
+            <button
+              pButton
+              type="button"
+              class="justify-center !rounded-2xl !bg-[var(--brand-primary)] !px-5 !py-3 !text-sm !font-semibold !text-white shadow-[0_14px_35px_rgba(37,99,235,0.18)]"
+              [disabled]="exporting() || closing()"
+              (click)="exportRequested.emit()"
+            >
+              <i class="pi pi-download mr-2 text-sm" aria-hidden="true"></i>
+              {{ exporting() ? 'Export...' : 'Esporta ordine' }}
+            </button>
+
+            <button
+              pButton
+              type="button"
+              class="justify-center !rounded-2xl !bg-emerald-600 !px-5 !py-3 !text-sm !font-semibold !text-white shadow-[0_14px_35px_rgba(5,150,105,0.16)]"
+              [disabled]="exporting() || closing()"
+              (click)="closeRequested.emit()"
+            >
+              <i class="pi pi-check-circle mr-2 text-sm" aria-hidden="true"></i>
+              {{ closing() ? 'Chiusura...' : 'Chiudi ordine' }}
+            </button>
+          </div>
+        }
+
         @if (
           currentOverview.missingItemsCount > 0 ||
           currentOverview.missingPricesCount > 0 ||

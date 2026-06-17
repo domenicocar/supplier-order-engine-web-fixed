@@ -34,7 +34,7 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
           <div class="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--app-border)] bg-white text-[var(--brand-primary)] transition hover:bg-[var(--brand-primary-soft)]"
+              class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] text-[var(--app-text)] shadow-sm transition hover:border-[var(--brand-primary)] hover:bg-[var(--brand-primary-soft)]"
               aria-label="Importa da file"
               title="Importa da file"
               (click)="importRequested.emit()"
@@ -43,7 +43,7 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
             </button>
             <button
               type="button"
-              class="shrink-0 rounded-xl border border-[var(--brand-primary)] bg-white px-3 py-2 text-xs font-semibold text-[var(--brand-primary)] transition hover:bg-[var(--brand-primary-soft)]"
+              class="app-primary-action shrink-0 px-4 py-2.5 text-sm"
               (click)="openSearch()"
             >
               Cerca prodotti
