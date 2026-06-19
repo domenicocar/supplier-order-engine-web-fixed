@@ -36,6 +36,7 @@ import {
   PaymentRequiredAction,
   PaymentRequiredDialogComponent
 } from '../../../shared/components/payment-required-dialog.component';
+import { InfoCalloutComponent } from '../../../shared/components/info-callout.component';
 import { OrdersSessionStore } from '../../../services/orders-session.store';
 import { OrdersService } from '../../../services/orders.service';
 import { AuthStore } from '../../auth/stores/auth.store';
@@ -79,7 +80,8 @@ interface ToastNotification {
     SupplierComparisonTabComponent,
     DialogModule,
     TabsModule,
-    PaymentRequiredDialogComponent
+    PaymentRequiredDialogComponent,
+    InfoCalloutComponent
   ],
   template: `
     @if (orderLoading()) {
@@ -603,6 +605,14 @@ interface ToastNotification {
                   <p class="rounded-2xl border border-dashed border-[var(--app-border-strong)] bg-[var(--app-surface-muted)] px-4 py-4 text-sm text-[var(--app-text-muted)]">
                     Ricerca catalogo in corso...
                   </p>
+                } @else if (catalogAssociationQuery().trim().length < 2) {
+                  @if (catalogAssociationHelpVisible()) {
+                    <app-info-callout
+                      title="Come funziona"
+                      message="Cerca il prodotto corretto nel catalogo globale. Inserisci almeno 2 caratteri: la disponibilità nei listini correnti verrà verificata al momento dell'associazione."
+                      (dismissed)="catalogAssociationHelpVisible.set(false)"
+                    />
+                  }
                 } @else if (catalogAssociationResults().length === 0) {
                   <p class="rounded-2xl border border-dashed border-[var(--app-border-strong)] bg-[var(--app-surface-muted)] px-4 py-4 text-sm text-[var(--app-text-muted)]">
                     Nessun prodotto trovato nel catalogo per la ricerca corrente.
@@ -637,11 +647,7 @@ interface ToastNotification {
                                 {{ candidate.description }}
                               </td>
                               <td class="border-t border-[rgba(148,163,184,0.14)] px-4 py-4 align-top text-sm text-[var(--app-text-muted)]">
-                                {{
-                                  candidate.availableSuppliers.length > 0
-                                    ? supplierAvailabilityLabel(candidate.availableSuppliers.length)
-                                    : 'Prodotto di catalogo senza offerte caricate'
-                                }}
+                                Verificata al momento dell'associazione
                               </td>
                               <td class="border-t border-[rgba(148,163,184,0.14)] px-4 py-4 text-right align-top">
                                 <button
@@ -761,10 +767,11 @@ export class OrderDetailPageComponent {
   readonly catalogAssociationDialogVisible = signal(false);
   readonly catalogAssociationSourceRow = signal<OrderExportSummaryRow | null>(null);
   readonly catalogAssociationQuery = signal('');
-  readonly catalogAssociationResults = signal<SupplierComparisonRow[]>([]);
+  readonly catalogAssociationResults = signal<GlobalCatalogProduct[]>([]);
   readonly catalogAssociationLoading = signal(false);
   readonly catalogAssociationSaving = signal(false);
   readonly catalogAssociationError = signal<string | null>(null);
+  readonly catalogAssociationHelpVisible = signal(true);
   readonly pageError = signal<string | null>(null);
   readonly toastNotification = signal<ToastNotification | null>(null);
   readonly supplierComparisonRequested = signal(false);
@@ -1805,6 +1812,8 @@ export class OrderDetailPageComponent {
       return;
     }
 
+    this.clearCatalogSearchTimeout();
+    this.catalogSearchRequestSequence += 1;
     this.catalogAssociationSourceRow.set(item);
     this.catalogAssociationDialogVisible.set(true);
     this.catalogAssociationQuery.set('');
@@ -1813,14 +1822,6 @@ export class OrderDetailPageComponent {
     this.catalogAssociationLoading.set(false);
     this.catalogAssociationSaving.set(false);
 
-    const cachedCatalogRows = this.getCachedCatalogRows();
-
-    if (cachedCatalogRows.length > 0) {
-      this.catalogAssociationResults.set(this.deduplicateCatalogRows(cachedCatalogRows));
-      return;
-    }
-
-    void this.loadCatalogAssociationResults('');
   }
 
   onCatalogAssociationDialogVisibilityChange(visible: boolean): void {
@@ -1855,6 +1856,10 @@ export class OrderDetailPageComponent {
     const count = this.catalogAssociationResults().length;
     const query = this.catalogAssociationQuery().trim();
 
+    if (query.length < 2) {
+      return 'Ricerca nel catalogo globale';
+    }
+
     if (query.length > 0) {
       return `${count} risultati per "${query}"`;
     }
@@ -1862,7 +1867,7 @@ export class OrderDetailPageComponent {
     return `${count} prodotti disponibili nel catalogo`;
   }
 
-  async confirmCatalogAssociation(candidate: SupplierComparisonRow): Promise<void> {
+  async confirmCatalogAssociation(candidate: GlobalCatalogProduct): Promise<void> {
     const orderId = this.orderId();
     const sourceRow = this.catalogAssociationSourceRow();
 
@@ -1916,9 +1921,7 @@ export class OrderDetailPageComponent {
         );
       }
     } catch (error: unknown) {
-      this.catalogAssociationError.set(
-        this.toMessage(error, 'Associazione prodotto a catalogo non riuscita.')
-      );
+      this.catalogAssociationError.set(this.catalogAssociationSaveErrorMessage(error));
     } finally {
       this.catalogAssociationSaving.set(false);
     }
@@ -2540,10 +2543,22 @@ export class OrderDetailPageComponent {
 
   private scheduleCatalogSearch(): void {
     this.clearCatalogSearchTimeout();
+    const normalizedQuery = this.catalogAssociationQuery().trim();
+    const requestSequence = ++this.catalogSearchRequestSequence;
+
+    this.catalogAssociationResults.set([]);
+    this.catalogAssociationError.set(null);
+
+    if (normalizedQuery.length < 2) {
+      this.catalogAssociationLoading.set(false);
+      return;
+    }
+
+    this.catalogAssociationLoading.set(true);
     this.catalogSearchTimeoutId = setTimeout(() => {
       this.catalogSearchTimeoutId = null;
-      void this.loadCatalogAssociationResults(this.catalogAssociationQuery());
-    }, 250);
+      void this.loadCatalogAssociationResults(normalizedQuery, requestSequence);
+    }, 300);
   }
 
   private clearCatalogSearchTimeout(): void {
@@ -2678,39 +2693,33 @@ export class OrderDetailPageComponent {
     }
   }
 
-  private async loadCatalogAssociationResults(query: string): Promise<void> {
-    const orderId = this.orderId();
-
-    if (!orderId || !this.catalogAssociationDialogVisible()) {
+  private async loadCatalogAssociationResults(
+    query: string,
+    requestSequence: number
+  ): Promise<void> {
+    if (
+      !this.catalogAssociationDialogVisible() ||
+      requestSequence !== this.catalogSearchRequestSequence
+    ) {
       return;
     }
 
     const normalizedQuery = query.trim();
-    const cachedCatalogRows = this.getCachedCatalogRows();
-
-    if (cachedCatalogRows.length > 0) {
+    if (normalizedQuery.length < 2) {
       this.catalogAssociationLoading.set(false);
-      this.catalogAssociationError.set(null);
-      this.catalogAssociationResults.set(
-        this.filterCatalogRows(this.deduplicateCatalogRows(cachedCatalogRows), normalizedQuery)
-      );
       return;
     }
 
-    const requestSequence = ++this.catalogSearchRequestSequence;
-    this.catalogAssociationLoading.set(true);
-    this.catalogAssociationError.set(null);
-
     try {
-      const response = await firstValueFrom(this.ordersService.getOrderCatalog(orderId));
+      const products = await firstValueFrom(
+        this.ordersService.searchGlobalCatalog(normalizedQuery)
+      );
 
       if (requestSequence !== this.catalogSearchRequestSequence) {
         return;
       }
 
-      const catalogRows = this.deduplicateCatalogRows(response.rows);
-      this.ordersStore.setSupplierComparisonRows(orderId, catalogRows);
-      this.catalogAssociationResults.set(this.filterCatalogRows(catalogRows, normalizedQuery));
+      this.catalogAssociationResults.set(products.slice(0, 50));
     } catch (error: unknown) {
       if (requestSequence !== this.catalogSearchRequestSequence) {
         return;
@@ -2727,6 +2736,20 @@ export class OrderDetailPageComponent {
     }
   }
 
+  private catalogAssociationSaveErrorMessage(error: unknown): string {
+    const message = this.toMessage(error, 'Associazione prodotto a catalogo non riuscita.');
+
+    if (
+      error instanceof HttpErrorResponse &&
+      error.status === 400 &&
+      message.toLowerCase().includes('prodotto catalogo non disponibile')
+    ) {
+      return 'Il prodotto selezionato non e disponibile nei listini correnti dell\'ordine.';
+    }
+
+    return message;
+  }
+
   private async reloadOrderSnapshot(orderId: string): Promise<boolean> {
     try {
       const response = await firstValueFrom(this.ordersService.getOrderById(orderId));
@@ -2741,60 +2764,6 @@ export class OrderDetailPageComponent {
       );
       return false;
     }
-  }
-
-  private getCachedCatalogRows(): SupplierComparisonRow[] {
-    return this.order()?.supplierComparisonRows ?? [];
-  }
-
-  private deduplicateCatalogRows(rows: SupplierComparisonRow[]): SupplierComparisonRow[] {
-    const uniqueRows = new Map<string, SupplierComparisonRow>();
-
-    for (const row of rows) {
-      const normalizedEan = row.ean.trim();
-
-      if (!normalizedEan || uniqueRows.has(normalizedEan)) {
-        continue;
-      }
-
-      uniqueRows.set(normalizedEan, row);
-    }
-
-    return Array.from(uniqueRows.values());
-  }
-
-  private filterCatalogRows(
-    rows: SupplierComparisonRow[],
-    query: string
-  ): SupplierComparisonRow[] {
-    const normalizedQuery = this.normalizeCatalogSearchValue(query);
-
-    if (!normalizedQuery) {
-      return rows;
-    }
-
-    const queryTerms = normalizedQuery.split(' ').filter((term) => term.length > 0);
-
-    return rows.filter((row) => {
-      const searchableContent = this.normalizeCatalogSearchValue([
-        row.ean,
-        row.description,
-        row.sourceEan,
-        row.sourceDescription,
-        ...row.availableSuppliers.map((supplier) => supplier.supplierName)
-      ].filter((value): value is string => Boolean(value)).join(' '));
-
-      return queryTerms.every((term) => searchableContent.includes(term));
-    });
-  }
-
-  private normalizeCatalogSearchValue(value: string): string {
-    return value
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLocaleLowerCase('it-IT')
-      .replace(/\s+/g, ' ')
-      .trim();
   }
 
   private async syncDraftItems(): Promise<void> {

@@ -11,6 +11,8 @@ import { AuthStore } from '../../auth/stores/auth.store';
 import { OrdersSessionStore } from '../../../services/orders-session.store';
 import { OrdersService } from '../../../services/orders.service';
 
+type PeriodView = 'month' | 'year';
+
 @Component({
   selector: 'app-orders-list-page',
   standalone: true,
@@ -50,7 +52,7 @@ import { OrdersService } from '../../../services/orders.service';
             {{ totalEstimatedLabel() }}
           </p>
           <p class="mt-3 text-sm text-[var(--app-text-muted)]">
-            Somma dei totali stimati di tutti gli ordini caricati.
+            Somma dei totali stimati nel periodo selezionato.
           </p>
         </article>
 
@@ -128,9 +130,73 @@ import { OrdersService } from '../../../services/orders.service';
             caricare file fornitore ed esportare.
           </p>
         </section>
+      } @else if (filteredOrders().length === 0) {
+        <section class="surface-panel flex flex-col items-start gap-3 rounded-[30px] p-8">
+          <div class="mb-3">
+            <div class="inline-flex rounded-2xl bg-[var(--app-surface-muted)] p-1">
+              <button
+                type="button"
+                class="rounded-xl px-4 py-2 text-xs font-semibold transition"
+                [class.bg-[var(--brand-primary)]]="periodView() === 'month'"
+                [class.text-white]="periodView() === 'month'"
+                [class.text-[var(--app-text-muted)]]="periodView() !== 'month'"
+                (click)="setPeriodView('month')"
+              >
+                Mese corrente
+              </button>
+              <button
+                type="button"
+                class="rounded-xl px-4 py-2 text-xs font-semibold transition"
+                [class.bg-[var(--brand-primary)]]="periodView() === 'year'"
+                [class.text-white]="periodView() === 'year'"
+                [class.text-[var(--app-text-muted)]]="periodView() !== 'year'"
+                (click)="setPeriodView('year')"
+              >
+                Anno in corso
+              </button>
+            </div>
+            <p class="mt-2 text-xs text-[var(--app-text-muted)]">
+              0 ordini &middot; {{ periodReferenceLabel() }}
+            </p>
+          </div>
+          <p class="font-heading text-2xl font-semibold text-[var(--app-text)]">
+            Nessun ordine nel periodo selezionato
+          </p>
+          <p class="text-sm leading-7 text-[var(--app-text-muted)]">
+            Nessun ordine disponibile per {{ periodReferenceLabel() }}.
+          </p>
+        </section>
       } @else {
+        <div class="px-1 md:hidden">
+          <div class="inline-flex rounded-2xl bg-[var(--app-surface-muted)] p-1">
+            <button
+              type="button"
+              class="rounded-xl px-4 py-2 text-xs font-semibold transition"
+              [class.bg-[var(--brand-primary)]]="periodView() === 'month'"
+              [class.text-white]="periodView() === 'month'"
+              [class.text-[var(--app-text-muted)]]="periodView() !== 'month'"
+              (click)="setPeriodView('month')"
+            >
+              Mese corrente
+            </button>
+            <button
+              type="button"
+              class="rounded-xl px-4 py-2 text-xs font-semibold transition"
+              [class.bg-[var(--brand-primary)]]="periodView() === 'year'"
+              [class.text-white]="periodView() === 'year'"
+              [class.text-[var(--app-text-muted)]]="periodView() !== 'year'"
+              (click)="setPeriodView('year')"
+            >
+              Anno in corso
+            </button>
+          </div>
+          <p class="mt-2 text-xs text-[var(--app-text-muted)]">
+            {{ filteredOrders().length }} ordini &middot; {{ periodReferenceLabel() }}
+          </p>
+        </div>
+
         <section class="grid gap-4 md:hidden">
-          @for (order of orders(); track order.id) {
+          @for (order of filteredOrders(); track order.id) {
             <article class="surface-panel overflow-hidden rounded-[26px] p-5">
               <div>
                 <span
@@ -223,6 +289,33 @@ import { OrdersService } from '../../../services/orders.service';
         </section>
 
         <section class="surface-panel hidden overflow-hidden rounded-[30px] p-3 md:block">
+          <div class="px-5 pb-3 pt-2">
+            <div class="inline-flex rounded-2xl bg-[var(--app-surface-muted)] p-1">
+              <button
+                type="button"
+                class="rounded-xl px-4 py-2 text-xs font-semibold transition"
+                [class.bg-[var(--brand-primary)]]="periodView() === 'month'"
+                [class.text-white]="periodView() === 'month'"
+                [class.text-[var(--app-text-muted)]]="periodView() !== 'month'"
+                (click)="setPeriodView('month')"
+              >
+                Mese corrente
+              </button>
+              <button
+                type="button"
+                class="rounded-xl px-4 py-2 text-xs font-semibold transition"
+                [class.bg-[var(--brand-primary)]]="periodView() === 'year'"
+                [class.text-white]="periodView() === 'year'"
+                [class.text-[var(--app-text-muted)]]="periodView() !== 'year'"
+                (click)="setPeriodView('year')"
+              >
+                Anno in corso
+              </button>
+            </div>
+            <p class="mt-2 text-xs text-[var(--app-text-muted)]">
+              {{ filteredOrders().length }} ordini &middot; {{ periodReferenceLabel() }}
+            </p>
+          </div>
           <div class="overflow-x-auto">
             <table class="min-w-full border-separate border-spacing-0">
               <thead>
@@ -270,7 +363,7 @@ import { OrdersService } from '../../../services/orders.service';
                 </tr>
               </thead>
               <tbody>
-                @for (order of orders(); track order.id) {
+                @for (order of filteredOrders(); track order.id) {
                   <tr class="transition hover:bg-[rgba(148,163,184,0.04)]">
                     <td class="border-t border-[rgba(148,163,184,0.14)] px-5 py-5">
                       <div class="min-w-[12rem]">
@@ -428,6 +521,11 @@ export class OrdersListPageComponent {
     minute: '2-digit'
   });
   private readonly integerFormatter = new Intl.NumberFormat('it-IT');
+  private readonly currentDate = new Date();
+  private readonly italianMonthYearFormatter = new Intl.DateTimeFormat('it-IT', {
+    month: 'long',
+    year: 'numeric'
+  });
 
   readonly orders = this.ordersStore.orders;
   readonly creating = signal(false);
@@ -437,12 +535,35 @@ export class OrdersListPageComponent {
   readonly paymentRequiredAction = signal<PaymentRequiredAction>('create-order');
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
-  readonly ordersCount = computed(() => this.orders().length);
+  readonly periodView = signal<PeriodView>('month');
+  readonly periodReferenceLabel = computed(() =>
+    this.periodView() === 'month'
+      ? this.capitalize(this.italianMonthYearFormatter.format(this.currentDate))
+      : `${this.currentDate.getFullYear()}`
+  );
+  readonly filteredOrders = computed(() => {
+    const period = this.periodView();
+    const currentYear = this.currentDate.getFullYear();
+    const currentMonth = this.currentDate.getMonth();
+
+    return this.orders().filter((order) => {
+      const date = this.parseDate(order.createdAt);
+
+      if (!date) {
+        return false;
+      }
+
+      return date.getFullYear() === currentYear &&
+        (period === 'year' || date.getMonth() === currentMonth);
+    });
+  });
+  readonly allOrdersCount = computed(() => this.orders().length);
+  readonly ordersCount = computed(() => this.filteredOrders().length);
   readonly draftOrdersCount = computed(
-    () => this.orders().filter((order) => (order.status ?? '').trim().toLowerCase() === 'draft').length
+    () => this.filteredOrders().filter((order) => (order.status ?? '').trim().toLowerCase() === 'draft').length
   );
   readonly totalEstimatedAmount = computed(() =>
-    this.orders().reduce((sum, order) => sum + (order.estimatedTotal ?? 0), 0)
+    this.filteredOrders().reduce((sum, order) => sum + (order.estimatedTotal ?? 0), 0)
   );
 
   constructor() {
@@ -470,6 +591,10 @@ export class OrdersListPageComponent {
     } finally {
       this.creating.set(false);
     }
+  }
+
+  setPeriodView(period: PeriodView): void {
+    this.periodView.set(period);
   }
 
   openDeleteDialog(order: SessionOrder): void {
@@ -670,7 +795,7 @@ export class OrdersListPageComponent {
   }
 
   private shouldOpenPaymentRequiredDialogForCreate(): boolean {
-    return this.ordersCount() >= 1 && this.openPaymentRequiredDialogIfNeeded('create-order');
+    return this.allOrdersCount() >= 1 && this.openPaymentRequiredDialogIfNeeded('create-order');
   }
 
   private openPaymentRequiredDialogIfNeeded(action: PaymentRequiredAction): boolean {

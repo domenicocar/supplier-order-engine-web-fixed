@@ -12,12 +12,13 @@ import {
 import { FormsModule } from '@angular/forms';
 
 import { GlobalCatalogProduct, OrderItem } from '../../../models/order.models';
+import { InfoCalloutComponent } from '../../../shared/components/info-callout.component';
 import { BarcodeScannerComponent } from './barcode-scanner.component';
 
 @Component({
   selector: 'app-global-catalog-order-builder',
   standalone: true,
-  imports: [BarcodeScannerComponent, FormsModule],
+  imports: [BarcodeScannerComponent, FormsModule, InfoCalloutComponent],
   template: `
     <div
       class="min-w-0 bg-white md:flex md:min-h-[30rem] md:flex-1 md:flex-col"
@@ -205,23 +206,12 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
       </div>
 
       @if (searchHelpVisible()) {
-        <div class="mt-4 flex items-start gap-3 rounded-2xl bg-[var(--brand-primary-soft)] px-4 py-4">
-          <i class="pi pi-info-circle mt-0.5 shrink-0 text-sm text-[var(--brand-primary)]" aria-hidden="true"></i>
-          <div class="min-w-0 flex-1">
-            <p class="text-sm font-semibold text-[var(--app-text)]">Come funziona</p>
-            <p class="mt-1 text-xs leading-5 text-[var(--app-text-muted)]">
-              Cerca un prodotto e aggiungi la quantità desiderata. Puoi inserire prodotti uno alla volta.
-            </p>
-          </div>
-          <button
-            type="button"
-            class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--app-text-muted)] transition hover:bg-white/70 hover:text-[var(--app-text)]"
-            aria-label="Nascondi informazioni"
-            (click)="searchHelpVisible.set(false)"
-          >
-            <i class="pi pi-times text-xs" aria-hidden="true"></i>
-          </button>
-        </div>
+        <app-info-callout
+          class="mt-4"
+          title="Come funziona"
+          message="Cerca un prodotto e aggiungi la quantità desiderata. Puoi inserire prodotti uno alla volta."
+          (dismissed)="searchHelpVisible.set(false)"
+        />
       }
 
       @if (error()) {
@@ -369,6 +359,7 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
         <button
           type="button"
           class="absolute left-1/2 top-0 inline-flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-[var(--brand-primary)] text-white shadow-[0_8px_24px_rgba(37,99,235,0.3)] transition hover:brightness-95 md:hidden"
+          [class.scanner-attention]="!scannerOpen()"
           aria-label="Scansiona barcode"
           title="Scansiona barcode"
           (click)="scannerOpen.set(true)"
@@ -392,6 +383,57 @@ import { BarcodeScannerComponent } from './barcode-scanner.component';
         (scanned)="onBarcodeScanned($event)"
         (closed)="scannerOpen.set(false)"
       />
+    }
+  `,
+  styles: `
+    .scanner-attention::after {
+      position: absolute;
+      inset: -0.4rem;
+      border: 2px solid color-mix(in srgb, var(--brand-primary) 55%, transparent);
+      border-radius: 9999px;
+      content: '';
+      pointer-events: none;
+      animation: scanner-attention-ring 2.4s ease-out infinite;
+    }
+
+    .scanner-attention .pi-camera {
+      animation: scanner-attention-icon 2.4s ease-in-out infinite;
+    }
+
+    @keyframes scanner-attention-ring {
+      0%, 45%, 100% {
+        opacity: 0;
+        transform: scale(0.82);
+      }
+      12% {
+        opacity: 0.75;
+      }
+      38% {
+        opacity: 0;
+        transform: scale(1.32);
+      }
+    }
+
+    @keyframes scanner-attention-icon {
+      0%, 42%, 100% {
+        transform: rotate(0deg) scale(1);
+      }
+      10% {
+        transform: rotate(-7deg) scale(1.12);
+      }
+      18% {
+        transform: rotate(7deg) scale(1.12);
+      }
+      27% {
+        transform: rotate(0deg) scale(1);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .scanner-attention::after,
+      .scanner-attention .pi-camera {
+        animation: none;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
