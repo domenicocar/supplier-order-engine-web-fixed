@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 
-import { SessionOrder } from '../../../models/order.models';
+import { CurrentAccessLimits, SessionOrder } from '../../../models/order.models';
 import { PaymentRequiredAction, PaymentRequiredDialogComponent } from '../../../shared/components/payment-required-dialog.component';
 import { AuthStore } from '../../auth/stores/auth.store';
 import { OrdersSessionStore } from '../../../services/orders-session.store';
@@ -66,6 +66,9 @@ type PeriodView = 'month' | 'year';
           <p class="mt-3 text-sm text-[var(--app-text-muted)]">
             {{ draftOrdersLabel() }}
           </p>
+          <p class="mt-2 text-xs font-semibold text-[var(--brand-secondary)]">
+            {{ orderQuotaLabel() }}
+          </p>
         </article>
 
         <article
@@ -76,6 +79,9 @@ type PeriodView = 'month' | 'year';
           </p>
           <p class="mt-4 max-w-xs text-sm leading-7 text-[var(--app-text-muted)]">
             Crea un nuovo draft e avvia subito il flusso di import, confronto ed export.
+          </p>
+          <p class="mt-3 text-xs font-semibold text-[var(--brand-secondary)]">
+            {{ orderQuotaLabel() }}
           </p>
           <button
             pButton
@@ -533,6 +539,7 @@ export class OrdersListPageComponent {
   readonly deleteDialogOrder = signal<SessionOrder | null>(null);
   readonly paymentRequiredDialogVisible = signal(false);
   readonly paymentRequiredAction = signal<PaymentRequiredAction>('create-order');
+  readonly accessLimits = signal<CurrentAccessLimits | null>(null);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly periodView = signal<PeriodView>('month');
@@ -564,6 +571,9 @@ export class OrdersListPageComponent {
   );
   readonly totalEstimatedAmount = computed(() =>
     this.filteredOrders().reduce((sum, order) => sum + (order.estimatedTotal ?? 0), 0)
+  );
+  readonly currentMonthOrdersCount = computed(
+    () => this.orders().filter((order) => this.isCurrentMonthOrder(order)).length
   );
 
   constructor() {
@@ -658,6 +668,18 @@ export class OrdersListPageComponent {
   draftOrdersLabel(): string {
     const count = this.draftOrdersCount();
     return count === 1 ? '1 ordine in bozza' : `${count} ordini in bozza`;
+  }
+
+  orderQuotaLabel(): string {
+    const accessLimits = this.accessLimits();
+    const limit = accessLimits?.orders.limit ?? (this.isBasicPlan() ? 3 : null);
+
+    if (limit === null) {
+      return 'Piano Plus: ordini illimitati';
+    }
+
+    const used = accessLimits?.orders.used ?? this.currentMonthOrdersCount();
+    return `Piano Basic: ${Math.min(used, limit)}/${limit} ordini questo mese`;
   }
 
   orderStatusLabel(status: string | undefined): string {
@@ -757,8 +779,12 @@ export class OrdersListPageComponent {
     this.error.set(null);
 
     try {
-      const orders = await firstValueFrom(this.ordersService.listOrders());
+      const [orders, accessLimits] = await Promise.all([
+        firstValueFrom(this.ordersService.listOrders()),
+        firstValueFrom(this.ordersService.getCurrentAccessLimits())
+      ]);
       this.ordersStore.replaceOrders(orders);
+      this.accessLimits.set(accessLimits);
     } catch (error: unknown) {
       this.error.set(this.toMessage(error, 'Caricamento ordini non riuscito.'));
     } finally {
@@ -795,11 +821,19 @@ export class OrdersListPageComponent {
   }
 
   private shouldOpenPaymentRequiredDialogForCreate(): boolean {
-    return this.allOrdersCount() >= 1 && this.openPaymentRequiredDialogIfNeeded('create-order');
+    if (!this.isBasicPlan()) {
+      return false;
+    }
+
+    const accessLimits = this.accessLimits();
+    const limit = accessLimits?.orders.limit ?? 3;
+    const used = accessLimits?.orders.used ?? this.currentMonthOrdersCount();
+
+    return limit !== null && used >= limit && this.openPaymentRequiredDialogIfNeeded('create-order');
   }
 
   private openPaymentRequiredDialogIfNeeded(action: PaymentRequiredAction): boolean {
-    if (this.authStore.accessProfile()?.isPaying !== false) {
+    if (!this.isBasicPlan()) {
       return false;
     }
 
@@ -827,10 +861,26 @@ export class OrdersListPageComponent {
 
     const message = this.toMessage(error, '').toLowerCase();
     return (
+      message.includes('piano basic') ||
       message.includes('utenti non paganti') ||
       message.includes('account pagante') ||
       message.includes('utenti paganti')
     );
+  }
+
+  private isBasicPlan(): boolean {
+    return this.accessLimits()?.plan === 'basic' || this.authStore.subscriptionPlan() === 'basic';
+  }
+
+  private isCurrentMonthOrder(order: SessionOrder): boolean {
+    const date = this.parseDate(order.createdAt);
+
+    if (!date) {
+      return false;
+    }
+
+    return date.getFullYear() === this.currentDate.getFullYear() &&
+      date.getMonth() === this.currentDate.getMonth();
   }
 
   private parseDate(value: string): Date | null {

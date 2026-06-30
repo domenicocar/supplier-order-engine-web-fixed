@@ -1338,6 +1338,11 @@ export class OrderDetailPageComponent {
       return;
     }
 
+    if (options?.persistMapping && this.isBasicSupplierImportLimitReached(supplierId)) {
+      this.openPaymentRequiredDialogIfNeeded('supplier-import');
+      return;
+    }
+
     this.setSupplierLoading(supplierId, true);
     this.setSupplierUploadState(supplierId, {
       status: 'uploading',
@@ -1403,6 +1408,9 @@ export class OrderDetailPageComponent {
         });
       }
     } catch (error: unknown) {
+      const paymentRequired = options?.persistMapping &&
+        this.handlePaymentRequiredError(error, 'supplier-import');
+
       const message = this.toMessage(error, `Upload file fornitore ${supplierId} non riuscito.`);
       this.setSupplierPreviewState(supplierId, {
         file,
@@ -1415,7 +1423,7 @@ export class OrderDetailPageComponent {
       this.setSupplierUploadState(supplierId, {
         status: 'failed',
         fileName: file.name,
-        message,
+        message: paymentRequired ? 'Limite piano Basic raggiunto.' : message,
         updatedAt: new Date().toISOString()
       });
     } finally {
@@ -1568,10 +1576,6 @@ export class OrderDetailPageComponent {
       return;
     }
 
-    if (this.openPaymentRequiredDialogIfNeeded('export-order')) {
-      return;
-    }
-
     const orderId = this.orderId();
 
     if (!orderId) {
@@ -1720,10 +1724,6 @@ export class OrderDetailPageComponent {
   }
 
   exportMissingProducts(): void {
-    if (this.openPaymentRequiredDialogIfNeeded('export-order')) {
-      return;
-    }
-
     const rows = this.missingOrderSummaryRows();
 
     if (rows.length === 0) {
@@ -2977,7 +2977,7 @@ export class OrderDetailPageComponent {
   }
 
   private openPaymentRequiredDialogIfNeeded(action: PaymentRequiredAction): boolean {
-    if (this.authStore.accessProfile()?.isPaying !== false) {
+    if (!this.isBasicPlan()) {
       return false;
     }
 
@@ -3005,10 +3005,32 @@ export class OrderDetailPageComponent {
 
     const message = this.toMessage(error, '').toLowerCase();
     return (
+      message.includes('piano basic') ||
       message.includes('utenti non paganti') ||
       message.includes('account pagante') ||
       message.includes('utenti paganti')
     );
+  }
+
+  private isBasicPlan(): boolean {
+    return this.authStore.subscriptionPlan() === 'basic';
+  }
+
+  private isBasicSupplierImportLimitReached(supplierId: string): boolean {
+    if (!this.isBasicPlan()) {
+      return false;
+    }
+
+    const currentOrder = this.order();
+    const suppliers = currentOrder?.suppliers ?? [];
+    const targetSupplier = suppliers.find((supplier) => supplier.id === supplierId);
+
+    if (targetSupplier?.latestUpload) {
+      return false;
+    }
+
+    const importedSuppliersCount = suppliers.filter((supplier) => !!supplier.latestUpload).length;
+    return importedSuppliersCount >= 4;
   }
 
   private runWithScrollLock(action: () => void): void {

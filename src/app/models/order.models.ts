@@ -223,6 +223,20 @@ export interface CreateOrderResponse {
   order: SessionOrder;
 }
 
+export interface CurrentAccessLimits {
+  plan: 'basic' | 'plus';
+  orders: {
+    limit: number | null;
+    used: number;
+    remaining: number | null;
+    periodStart: string;
+    periodEnd: string;
+  };
+  supplierImports: {
+    limit: number | null;
+  };
+}
+
 export interface GetOrderResponse {
   order: SessionOrder;
 }

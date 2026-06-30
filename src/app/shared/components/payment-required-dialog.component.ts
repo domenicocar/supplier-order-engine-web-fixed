@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 
-export type PaymentRequiredAction = 'create-order' | 'export-order';
+export type PaymentRequiredAction = 'create-order' | 'export-order' | 'supplier-import';
 
 @Component({
   selector: 'app-payment-required-dialog',
@@ -71,19 +71,25 @@ export class PaymentRequiredDialogComponent {
 
   readonly title = computed(() =>
     this.action() === 'create-order'
-      ? 'Hai raggiunto il limite del piano gratuito'
-      : "L'export e disponibile solo per gli account paganti"
+      ? 'Hai raggiunto il limite del piano Basic'
+      : this.action() === 'supplier-import'
+        ? 'Hai raggiunto il limite import fornitori'
+        : "L'export e disponibile nel piano Basic e Plus"
   );
 
   readonly description = computed(() =>
     this.action() === 'create-order'
-      ? 'Con il piano gratuito puoi creare un solo ordine. Per aprire altri ordini devi passare a un account pagante.'
-      : "Per esportare l'ordine e scaricare i file generati serve un account pagante attivo."
+      ? 'Con il piano Basic puoi creare massimo 3 ordini al mese. Con Plus gli ordini sono illimitati.'
+      : this.action() === 'supplier-import'
+        ? 'Con il piano Basic puoi salvare massimo 4 import fornitori per ordine. Con Plus gli import sono illimitati.'
+        : "Se vedi questo avviso, il tuo account non risulta attivo per completare l'operazione."
   );
 
   readonly benefits = computed(() =>
     this.action() === 'create-order'
-      ? ['Crea piu di un ordine per account', 'Continua a lavorare senza blocchi sui nuovi draft', 'Mantieni accesso completo a import, confronto ed export']
-      : ["Esporta l'ordine in un click", 'Scarica subito i file generati per i fornitori', "Sblocca il flusso completo fino all'invio finale"]
+      ? ['Ordini mensili illimitati', 'Cronologia completa', 'Nessun blocco sui nuovi draft']
+      : this.action() === 'supplier-import'
+        ? ['Import fornitori illimitati', 'Confronti prezzo senza limite', 'Gestione listini piu ampia']
+        : ["Esporta l'ordine in un click", 'Scarica subito i file generati per i fornitori', "Sblocca il flusso completo fino all'invio finale"]
   );
 }

@@ -22,6 +22,7 @@ export class AuthStore {
   readonly suspendedMessage = signal<string | null>(null);
   readonly isAuthenticated = computed(() => !!this.session());
   readonly isPaying = computed(() => this.accessProfile()?.isPaying === true);
+  readonly subscriptionPlan = computed(() => this.accessProfile()?.subscriptionPlan ?? 'basic');
   private authStateSubscribed = false;
 
   async initialize(): Promise<void> {

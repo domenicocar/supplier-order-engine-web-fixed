@@ -4,6 +4,7 @@ import { Observable, map } from 'rxjs';
 import {
   CloseOrderResponse,
   CreateOrderResponse,
+  CurrentAccessLimits,
   DeleteOrderResponse,
   RemoveOrderSupplierResponse,
   ExportGeneratedFile,
@@ -67,6 +68,12 @@ export class OrdersService {
       map((payload) => ({
         order: this.normalizeSessionOrder(payload)
       }))
+    );
+  }
+
+  getCurrentAccessLimits(): Observable<CurrentAccessLimits> {
+    return this.api.get<unknown>('/orders/access/limits').pipe(
+      map((payload) => this.normalizeCurrentAccessLimits(payload))
     );
   }
 
@@ -403,6 +410,30 @@ export class OrdersService {
             this.pickValue(source, ['suppliers', 'supplierList', 'vendors', 'providers', 'fornitori'])
         )
       )
+    };
+  }
+
+  private normalizeCurrentAccessLimits(payload: unknown): CurrentAccessLimits {
+    const source = this.unwrap(payload);
+    const orders = this.unwrap(this.pickValue(source, ['orders']));
+    const supplierImports = this.unwrap(this.pickValue(source, ['supplierImports', 'supplier_imports']));
+    const plan = this.pickString(source, ['plan']);
+    const orderLimit = this.pickNumber(orders, ['limit']);
+    const orderRemaining = this.pickNumber(orders, ['remaining']);
+    const supplierImportLimit = this.pickNumber(supplierImports, ['limit']);
+
+    return {
+      plan: plan === 'plus' ? 'plus' : 'basic',
+      orders: {
+        limit: orderLimit,
+        used: this.pickNumber(orders, ['used']) ?? 0,
+        remaining: orderRemaining,
+        periodStart: this.pickString(orders, ['periodStart', 'period_start']) ?? '',
+        periodEnd: this.pickString(orders, ['periodEnd', 'period_end']) ?? ''
+      },
+      supplierImports: {
+        limit: supplierImportLimit
+      }
     };
   }
 

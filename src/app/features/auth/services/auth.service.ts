@@ -7,6 +7,7 @@ export interface UserAccessProfile {
   id: string;
   role: string | null;
   isPaying: boolean;
+  subscriptionPlan: 'basic' | 'plus';
 }
 
 @Injectable({
@@ -59,8 +60,17 @@ export class AuthService {
     return {
       id: typeof profile['id'] === 'string' ? profile['id'] : userId,
       role: typeof profile['role'] === 'string' ? profile['role'] : null,
-      isPaying: profile['is_paying'] === true
+      isPaying: profile['is_paying'] === true,
+      subscriptionPlan: this.normalizeSubscriptionPlan(profile['subscription_plan'], profile['is_paying'] === true)
     };
+  }
+
+  private normalizeSubscriptionPlan(value: unknown, isPaying: boolean): 'basic' | 'plus' {
+    if (value === 'basic' || value === 'plus') {
+      return value;
+    }
+
+    return isPaying ? 'plus' : 'basic';
   }
 
   onAuthStateChange(
